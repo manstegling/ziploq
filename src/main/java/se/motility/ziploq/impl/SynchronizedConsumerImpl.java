@@ -36,6 +36,7 @@ public class SynchronizedConsumerImpl<T> implements SynchronizedConsumer<T> {
     private volatile boolean isComplete = false;
     private volatile boolean hasChanged = false;
     private volatile long graceExpiry = 0L;
+    private volatile long lastSystem = 0L;
     
     private boolean inHeads = false; //only ever modified by Ziploq output thread
     
@@ -87,7 +88,7 @@ public class SynchronizedConsumerImpl<T> implements SynchronizedConsumer<T> {
         boolean accepted = strategy == BackPressureStrategy.BLOCK
             ? queue.put(new EntryImpl<>(item, businessTs, systemTs, this))
             : queue.offer(new EntryImpl<>(item, businessTs, systemTs, this));
-        if (systemTs - system > systemDelay) {
+        if (systemTs - lastSystem > systemDelay) {
             //The producer has made a sudden jump in system time. Wait for recovery.
             graceExpiry = systemTs + systemDelay;
         }
@@ -132,5 +133,6 @@ public class SynchronizedConsumerImpl<T> implements SynchronizedConsumer<T> {
             system = ts;
             signalUpdate.run();
         }
+        lastSystem = ts;
     }
 }
