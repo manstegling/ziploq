@@ -36,7 +36,6 @@ public abstract class AbstractProducer implements Producer {
             businessTime = getNextBusinessTs(i, businessTime, systemTime);
             systemTime = getNextSystemTs(i, businessTime, systemTime);
             if (isEvent(i)) {
-//                System.out.println(thread.getName() + ": " + businessTime + ", " + systemTime + ", diff: " + (businessTime - systemTime));
                 while(!consumer.onEvent(object, businessTime, systemTime)) {
                     waitStrategy.run();
                 }

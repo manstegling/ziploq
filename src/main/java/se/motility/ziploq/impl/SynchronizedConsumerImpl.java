@@ -27,6 +27,7 @@ public class SynchronizedConsumerImpl<T> implements SynchronizedConsumer<T> {
     private static final long END = Long.MAX_VALUE;
     
     private final SpscSyncQueue<T> queue;
+    private final long systemDelay;
     private final String id;
     private final BackPressureStrategy strategy;
     private final Runnable signalUpdate;
@@ -34,11 +35,14 @@ public class SynchronizedConsumerImpl<T> implements SynchronizedConsumer<T> {
     private volatile long system = 0L; //start from 0 to prevent underflow
     private volatile boolean isComplete = false;
     private volatile boolean hasChanged = false;
+    private volatile long graceExpiry = 0L;
+    
     private boolean inHeads = false; //only ever modified by Ziploq output thread
     
-    SynchronizedConsumerImpl(SpscSyncQueue<T> queue,
+    SynchronizedConsumerImpl(SpscSyncQueue<T> queue, long systemDelay,
             BackPressureStrategy strategy, Runnable signalUpdate) {
         this.queue = queue;
+        this.systemDelay = systemDelay;
         this.id = ID_PREFIX + ID_GEN.incrementAndGet();
         this.strategy = strategy;
         this.signalUpdate = signalUpdate;
@@ -83,6 +87,10 @@ public class SynchronizedConsumerImpl<T> implements SynchronizedConsumer<T> {
         boolean accepted = strategy == BackPressureStrategy.BLOCK
             ? queue.put(new EntryImpl<>(item, businessTs, systemTs, this))
             : queue.offer(new EntryImpl<>(item, businessTs, systemTs, this));
+        if (systemTs - system > systemDelay) {
+            //The producer has made a sudden jump in system time. Wait for recovery.
+            graceExpiry = systemTs + systemDelay;
+        }
         onEvent(systemTs);
         return accepted;
     }
@@ -94,6 +102,10 @@ public class SynchronizedConsumerImpl<T> implements SynchronizedConsumer<T> {
                     "Consumer has already completed. Updating system time is not allowed.");
         }
         queue.updateSystemTs(timestamp);
+        if (graceExpiry > timestamp) {
+            //Calling updateSystemTime means we've recovered
+            graceExpiry = timestamp;
+        }
         onEvent(timestamp);
     }
     
@@ -115,7 +127,7 @@ public class SynchronizedConsumerImpl<T> implements SynchronizedConsumer<T> {
     }
 
     void onEvent(long ts) {
-        if (ts > system) {
+        if (ts > system && ts >= graceExpiry) {
             hasChanged = true; //must come before write to 'system'
             system = ts;
             signalUpdate.run();

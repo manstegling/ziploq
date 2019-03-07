@@ -310,8 +310,9 @@ public class ZiploqImplTest {
         //Add three messages to c1, first two messages are ready
         TestEntry e3 = consume(consumer1, OBJECT_1, TS_1, ZERO);
         TestEntry e4 = consume(consumer1, OBJECT_2, TS_1, ZERO);
+        consumer1.updateSystemTime(ZERO + delay);                            //signal that we are still alive
         TestEntry e5 = consume(consumer1, OBJECT_3, TS_1, ZERO + delay + 1); //release in c1
-        assertNull(ziploq.poll());                                             //still awaiting c2
+        assertNull(ziploq.poll());                                           //still awaiting c2
         
         TestEntry e6 = consume(consumer2, OBJECT_6, TS_1, ZERO + delay + 1); //release in c2
         
@@ -354,6 +355,9 @@ public class ZiploqImplTest {
         
         //release in c2, slower than real-time
         consume(consumer2, OBJECT_2, TS_1 + delay, ZERO + 3*delay);
+        
+        //Signal that we have recovered after being silent > system delays
+        consumer2.updateSystemTime(ZERO + 3*delay);
 
         joinTestThread(t);
     }
@@ -458,6 +462,178 @@ public class ZiploqImplTest {
         joinTestThread(t1);
         joinTestThread(t2);
         joinTestThread(t3);
+    }
+    
+    @Test
+    public void recoveryMsgOnly() {
+        long delay = 1000L;
+
+        Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
+        
+        // c1
+        TestEntry e1 = consume(consumer1, OBJECT_1, TS_1,     ZERO);
+        TestEntry e2 = consume(consumer1, OBJECT_1, TS_1 + 4, ZERO + delay);
+        consume(consumer1, OBJECT_1, TS_1 + 5, ZERO + 1*delay + 1);
+        consume(consumer1, OBJECT_1, TS_1 + 6, ZERO + 2*delay + 1);
+        
+        // c2
+        TestEntry e4 = consume(consumer2, OBJECT_2, TS_1,     ZERO);
+        TestEntry e5 = consume(consumer2, OBJECT_2, TS_1 + 1, ZERO + delay + 1); //marks the start of new recovery period
+        
+        verify(e1, ziploq.poll());
+        verify(e4, ziploq.poll());
+        verify(e5, ziploq.poll());
+        assertNull(ziploq.poll());
+        
+        TestEntry e6 = consume(consumer2, OBJECT_3, TS_1 + 3, ZERO + 2*delay + 1); //ends c2 recovery period
+
+        verify(e6, ziploq.poll());
+        verify(e2, ziploq.poll()); //emitted based on system timestamp
+        assertNull(ziploq.poll());
+    }
+    
+    @Test
+    public void recoveryUpdSysTime() {
+        long delay = 1000L;
+
+        Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
+        
+        // c2; already "in the future"
+        consumer2.updateSystemTime(ZERO + 3*delay);
+        
+        // c1
+        TestEntry e1 = consume(consumer1, OBJECT_1, TS_1, ZERO);
+        consume(consumer1, OBJECT_1, TS_1 + 5, ZERO + delay + 1); //marks the start of new recovery period
+        assertNull(ziploq.poll());
+        
+        consumer1.updateSystemTime(ZERO + delay + 2); //recovery complete
+        
+        verify(e1, ziploq.poll()); //emitted based on system time
+        assertNull(ziploq.poll());
+    }
+    
+    @Test
+    public void recoveryExampleUpdSysTime() {
+        long delay = 1000L;
+
+        Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK);
+        
+        // ordinary progress of c1 and c2
+        TestEntry e1 = consume(consumer1, OBJECT_1, TS_1,      ZERO);               //c1
+        TestEntry e2 = consume(consumer2, OBJECT_1, TS_1 + 1,  ZERO);               //c2
+        TestEntry e3 = consume(consumer1, OBJECT_1, TS_1 + 5,  ZERO + delay/2);     //c1
+        TestEntry e4 = consume(consumer2, OBJECT_1, TS_1 + 6,  ZERO + delay/2);     //c2
+        TestEntry e5 = consume(consumer1, OBJECT_1, TS_1 + 10, ZERO + delay);       //c1
+        TestEntry e6 = consume(consumer2, OBJECT_1, TS_1 + 11, ZERO + delay);       //c2
+        TestEntry e7 = consume(consumer1, OBJECT_1, TS_1 + 19, ZERO + 3*delay/2);   //c1
+        
+        // have consumer catch up
+        verify(e1, ziploq.poll());
+        verify(e2, ziploq.poll());
+        verify(e3, ziploq.poll());
+        verify(e4, ziploq.poll());
+        verify(e5, ziploq.poll());
+        verify(e6, ziploq.poll());
+        
+        // now assume c2 is experiencing issues
+        TestEntry e8 = consume(consumer1, OBJECT_1, TS_1 + 21, ZERO + 2*delay);     //c1
+        consume(consumer1, OBJECT_1, TS_1 + 26, ZERO + 5*delay/2);                  //c1
+        consume(consumer1, OBJECT_1, TS_1 + 31, ZERO + 3*delay);                    //c1
+        consume(consumer1, OBJECT_1, TS_1 + 36, ZERO + 7*delay/2);                  //c1
+        
+        assertNull(ziploq.poll()); //c2 is empty
+        
+        // at system time 'ZERO + 3.5*delay' the c1 is back and recovering (but system time is not accepted yet)
+        TestEntry e12= consume(consumer2, OBJECT_1, TS_1 + 14, ZERO + 7*delay/2);   //c2 - start of recovery
+        verify(e12, ziploq.poll());
+        
+        // if it wasn't for recovery mechanism at this point e7-e8 would be emitted based on system timestamp
+        assertNull(ziploq.poll());
+        
+        //c2 is catching up, submitting more old messages at this new system time
+        //messages are therefore only emitted from ziploq based on business time
+        TestEntry e13= consume(consumer2, OBJECT_1, TS_1 + 15, ZERO + 7*delay/2);   //c2
+        verify(e13, ziploq.poll());
+        assertNull(ziploq.poll());
+        TestEntry e14= consume(consumer2, OBJECT_1, TS_1 + 16, ZERO + 7*delay/2);   //c2
+        verify(e14, ziploq.poll());
+        assertNull(ziploq.poll());
+        
+        //now c2 has caught up and message processing is normal
+        consumer2.updateSystemTime(ZERO + 4*delay);
+        
+        // e7-e8 are finally emitted based on system time
+        verify(e7, ziploq.poll());
+        verify(e8, ziploq.poll());
+        assertNull(ziploq.poll());
+    }
+    
+    @Test
+    public void recoveryExampleMsgsOnly() {
+        long delay = 1000L;
+
+        Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK);
+        
+        // ordinary progress of c1 and c2
+        TestEntry e1 = consume(consumer1, OBJECT_1, TS_1,      ZERO);               //c1
+        TestEntry e2 = consume(consumer2, OBJECT_1, TS_1 + 1,  ZERO);               //c2
+        TestEntry e3 = consume(consumer1, OBJECT_1, TS_1 + 5,  ZERO + delay/2);     //c1
+        TestEntry e4 = consume(consumer2, OBJECT_1, TS_1 + 6,  ZERO + delay/2);     //c2
+        TestEntry e5 = consume(consumer1, OBJECT_1, TS_1 + 10, ZERO + delay);       //c1
+        TestEntry e6 = consume(consumer2, OBJECT_1, TS_1 + 11, ZERO + delay);       //c2
+        TestEntry e7 = consume(consumer1, OBJECT_1, TS_1 + 19, ZERO + 3*delay/2);   //c1
+        
+        // have consumer catch up
+        verify(e1, ziploq.poll());
+        verify(e2, ziploq.poll());
+        verify(e3, ziploq.poll());
+        verify(e4, ziploq.poll());
+        verify(e5, ziploq.poll());
+        verify(e6, ziploq.poll());
+        
+        // now assume c2 is experiencing issues
+        TestEntry e8 = consume(consumer1, OBJECT_1, TS_1 + 21, ZERO + 2*delay);     //c1
+        consume(consumer1, OBJECT_1, TS_1 + 26, ZERO + 5*delay/2);                  //c1
+        consume(consumer1, OBJECT_1, TS_1 + 31, ZERO + 3*delay);                    //c1
+        consume(consumer1, OBJECT_1, TS_1 + 36, ZERO + 7*delay/2);                  //c1
+        
+        assertNull(ziploq.poll()); //c2 is empty
+        
+        // at system time 'ZERO + 3.5*delay' the c1 is back and recovering (but system time is not accepted yet)
+        TestEntry e12= consume(consumer2, OBJECT_1, TS_1 + 14, ZERO + 7*delay/2);   //c2 - start of recovery
+        verify(e12, ziploq.poll());
+        
+        // if it wasn't for recovery mechanism at this point e7-e8 would be emitted based on system timestamp
+        assertNull(ziploq.poll());
+        
+        //c2 is catching up, submitting more old messages at this new system time
+        //messages are therefore only emitted from ziploq based on business time
+        TestEntry e13= consume(consumer2, OBJECT_1, TS_1 + 15, ZERO + 7*delay/2);   //c2
+        verify(e13, ziploq.poll());
+        assertNull(ziploq.poll());
+        TestEntry e14= consume(consumer2, OBJECT_1, TS_1 + 16, ZERO + 7*delay/2);   //c2
+        verify(e14, ziploq.poll());
+        assertNull(ziploq.poll());
+        
+        //now c2 has caught up and proceeds as normal [artificial test to show recovery completes for messages too]
+        TestEntry e15= consume(consumer2, OBJECT_1, TS_1 + 17, ZERO + 4*delay);     //c2
+        verify(e15, ziploq.poll());
+        assertNull(ziploq.poll());
+        TestEntry e16= consume(consumer2, OBJECT_1, TS_1 + 18, ZERO + 9*delay/2);   //c2 - end of recovery
+        verify(e16, ziploq.poll());
+        
+        // e7-e8 are finally emitted based on system time
+        verify(e7, ziploq.poll());
+        verify(e8, ziploq.poll());
+        assertNull(ziploq.poll());
     }
     
 }

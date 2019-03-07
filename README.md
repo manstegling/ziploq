@@ -45,20 +45,19 @@ It is also possible to retrieve the ordered output by using old-school methods `
 
 ### Understanding the vector clock
 
-Sorting of unordered data is carried out [on-line](https://en.wikipedia.org/wiki/Online_algorithm). You only need to know how much delayed messages can be (at most) in terms of the _business clock_ compared to previously processed messages from the same source. Setting the `businessDelay` to, for example, 100ms means we never expect to see a message with business timestamp `T-101` coming in after a message from the same source with business timestamp `T` has already been processed.
+Sorting of unordered data is carried out [on-line](https://en.wikipedia.org/wiki/Online_algorithm). You only need to know how much delayed messages can be (at most) in terms of the _business clock_ compared to previously processed messages from the same source. Setting the `businessDelay` to, for example, 100ms means we never expect to see a message with business timestamp _T-101_ coming in after a message from the same source with business timestamp _T_ has already been processed.
 
-The _business clock_ is ideally based on epoch millisecond timestamps from a global business clock. However, timestamps are handled internally as `long` values and any integer, such as a global sequence number, can be used. Messages are always sequenced first with respect to the business clock. In high-frequency applications, secondary sorting criteria can easily be configured to provide sub-millisecond (total) ordering.
+The _business clock_ is ideally based on epoch millisecond timestamps from a global business clock. However, business time is completely decoupled from system time and timestamps are handled internally as `long` values so any integer, such as a global sequence number, can be used. Messages are always sequenced first with respect to the business clock. In high-frequency applications, secondary sorting criteria can easily be configured to provide sub-millisecond (total) ordering.
 
 `Ziploq` has been designed with real-time processing in mind. Therefore, a secondary clock has been introduced, which is called the _system clock_.  Making each producer continuously publish their system time allows for advancing the message sequence even at times when input sources are silent. This mechanism can be considered a modern form of heartbeating; in which all sources drive event time together.
 
 When dealing with real-time processing, the system clock should be driven by wall-clock time. In this way, it's just a matter of configuration when it comes to how much real-time delay is acceptable within your application.
 
+In many real-world applications the data is coming from external data sources. In case a data connection goes down, the producer should stop publishing system time. Instead, simply wait until the connection has been re-established and then start publishing messages again. From a vector clock perspective this might involve a jump in system (wall-clock) time, but no associated jump in business time. `Ziploq` will automatically identify such a jump in the producer's system clock and initiate a recovery grace period for that producer (in system time) to complete its recovery and, thus, guarantee output sequencing is not impacted.
 
 ### Background and rationale
 
 There's no way to merge multiple ordered message streams built into the Java language. This is a significant gap impacting many message-passing and data crunching applications. Even if there were a simple method for merging streams in an efficient way while maintaining order, in many real-world scenarios we don't event have access to ordered input! Due to multicast protocols, weird upstream architecture or data transmission latencies, the input data reaching us often comes out-of-order in some way or another.
-
-To address these issues I've created `Ziploq`. With this device it becomes dead simple to merge and sequence message streams from any number of sources, even if the input data is unordered.
 
 ### Other stuff
 

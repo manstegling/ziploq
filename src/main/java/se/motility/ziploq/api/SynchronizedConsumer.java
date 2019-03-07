@@ -42,8 +42,8 @@ public interface SynchronizedConsumer<E> {
  
     /**
      * Advances system time without adding an associated event. Should be called when
-     * an input source is being silent (i.e. system time is flowing but the progress
-     * of business time is unknown).
+     * an input source is <i>healthy but silent</i> (i.e. no upstream connection issues
+     * and system time is flowing but the progress of business time is unknown).
      * <p>
      * System time must be updated in a non-decreasing
      * sequence.

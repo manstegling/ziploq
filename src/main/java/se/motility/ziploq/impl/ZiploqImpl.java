@@ -143,7 +143,8 @@ public class ZiploqImpl<E> implements Ziploq<E> {
     private <T extends E> SynchronizedConsumer<T> register(SpscSyncQueue<T> queue,
             boolean ordered, BackPressureStrategy strategy) {
         ArgChecker.notNull(strategy, "backPressureStrategy");
-        SynchronizedConsumerImpl<T> q = new SynchronizedConsumerImpl<>(queue, strategy, this::signalDirtySystemTs);
+        SynchronizedConsumerImpl<T> q = new SynchronizedConsumerImpl<>(
+                queue, systemDelay, strategy, this::signalDirtySystemTs);
         LOG.info("Registering {} input source with ID '{}'",
                 ordered ? "ordered" : "unordered", q.getId());
         updQueues.add(q);
@@ -242,10 +243,10 @@ public class ZiploqImpl<E> implements Ziploq<E> {
                 dirtySystemTs = false;
             }
             if (systemTs - peeked.getSystemTs() > systemDelay) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Message dequeued based on system timestamp progress. "
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("Message with business timestamp {} dequeued based on system timestamp progress. "
                             + "Global system timestamp: {}, Message system timestamp: {}",
-                            systemTs, peeked.getSystemTs());
+                            peeked.getBusinessTs(), systemTs, peeked.getSystemTs());
                 }
                 return heads.poll();
             }
