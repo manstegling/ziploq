@@ -9,6 +9,10 @@ An ingeniously simple device for merging and sequencing data from any number of 
 
 For your convenience, `Ziploq` also provides strategies for handling backpressure on both Producer and Consumer side.
 
+#### Normal use case (illustration)
+
+![Ziploq; merging input sources](https://raw.githubusercontent.com/manstegling/ziploq/master/images/ziploq.png)
+
 ### Using Ziploq
 
 Create a new `Ziploq` instance using the factory
@@ -49,11 +53,11 @@ Sorting of unordered data is carried out [on-line](https://en.wikipedia.org/wiki
 
 The _business clock_ is ideally based on epoch millisecond timestamps from a global business clock. However, business time is completely decoupled from system time and timestamps are handled internally as `long` values so any integer, such as a global sequence number, can be used. Messages are always sequenced first with respect to the business clock. In high-frequency applications, secondary sorting criteria can easily be configured to provide sub-millisecond (total) ordering.
 
-`Ziploq` has been designed with real-time processing in mind. Therefore, a secondary clock has been introduced, which is called the _system clock_.  Making each producer continuously publish their system time allows for advancing the message sequence even at times when input sources are silent. This mechanism can be considered a modern form of heartbeating; in which all sources drive event time together.
+`Ziploq` has been designed with real-time processing in mind. Therefore, a secondary clock has been introduced, which is called the _system clock_. Making each producer continuously publish their system time allows for advancing the message sequence even at times when input sources are silent. This mechanism can be considered a modern form of heartbeating; in which all sources drive event time together. The heartbeating frequency is governed by the `systemDelay` parameter; during normal operation it is expected that system time is progressed in steps not larger than the system time delay.
 
 When dealing with real-time processing, the system clock should be driven by wall-clock time. In this way, it's just a matter of configuration when it comes to how much real-time delay is acceptable within your application.
 
-In many real-world applications the data is coming from external data sources. In case a data connection goes down, the producer should stop publishing system time. Instead, simply wait until the connection has been re-established and then start publishing messages again. From a vector clock perspective this might involve a jump in system (wall-clock) time, but no associated jump in business time. `Ziploq` will automatically identify such a jump in the producer's system clock and initiate a recovery grace period for that producer (in system time) to complete its recovery and, thus, guarantee output sequencing is not impacted.
+In many real-world applications the data is coming from external data sources. In case a data connection goes down, the producer should stop publishing system time. Instead, simply wait until the connection has been re-established and then start publishing messages again. From a vector clock perspective this might involve a jump in system (wall-clock) time, but no immediate jump in business time. `Ziploq` will automatically identify such a jump in the producer's system clock and initiate a recovery grace period for that producer (in system time) to complete its recovery and, thus, guarantee output sequencing is not impacted.
 
 ### Background and rationale
 
@@ -62,6 +66,8 @@ There's no way to merge multiple ordered message streams built into the Java lan
 ### Other stuff
 
 The classes `OrderedSyncQueue` and `UnorderedSyncQueue` are useful on their own for Single-Producer Single-Consumer (SPSC) scenarios. The latter comes with built-in on-line sorting for queued messages based on a vector clock. They're both lock-free concurrent SPSC queues built on top of data structures from the lightning-fast [JCTools](https://github.com/JCTools/JCTools) library. Create instances of these queues using the associated `SpscSyncQueueFactory`.
+
+If there's a known systematic time discrepancy between producers, this discrepancy must be added to the `systemDelay` parameter. For example, if producer `B` most of the time provide a system timestamp 500ms later than producer `A` for messages having the same business timestamp, do add 500ms to your desired value for the system time delay parameter to offset this.
 
 _Note:_ Illustrations describing how the vector clock and sorting mechanism work are in the making.
 
