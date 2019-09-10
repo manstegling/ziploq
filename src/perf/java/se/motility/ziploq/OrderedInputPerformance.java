@@ -41,6 +41,8 @@ import se.motility.ziploq.testimpl.QuietOrderedProducer;
 @BenchmarkMode(Mode.SingleShotTime)
 public class OrderedInputPerformance {
     
+    private static final String TEST_SOURCE = "SOURCE";
+    
     // -- Performance tests -- //
 
     @Benchmark
@@ -117,7 +119,7 @@ public class OrderedInputPerformance {
             this.producerList = new ArrayList<>();
             int messagesPerProducer = (totalMessages / producers) + 1;
             for (int i=0; i<producers; i++) {
-                SynchronizedConsumer<Object> consumer = ziploq.registerOrdered(capacity, mode.bps);
+                SynchronizedConsumer<Object> consumer = ziploq.registerOrdered(capacity, mode.bps, TEST_SOURCE);
                 producerList.add(new OrderedProducerNoSystemTs(consumer, messagesPerProducer, msgsPerMilli, mode.ws));
             }
         }
@@ -160,7 +162,7 @@ public class OrderedInputPerformance {
             this.producerList = new ArrayList<>();
             int messagesPerProducer = (totalMessages / producers) + 1;
             for (int i=0; i<producers; i++) {
-                SynchronizedConsumer<Object> consumer = ziploq.registerOrdered(capacity, mode.bps);
+                SynchronizedConsumer<Object> consumer = ziploq.registerOrdered(capacity, mode.bps, TEST_SOURCE);
                 producerList.add(new OrderedProducer(consumer, messagesPerProducer, msgsPerMilli, mode.ws));
             }
         }
@@ -201,13 +203,13 @@ public class OrderedInputPerformance {
             this.producerList = new ArrayList<>();
             int messagesPerProducer = (totalMessages / (3*producerSets)) + 1;
             for(int i=0;i<producerSets;i++) {
-                SynchronizedConsumer<Object> consumer1 = ziploq.registerOrdered(capacity, mode.bps);
+                SynchronizedConsumer<Object> consumer1 = ziploq.registerOrdered(capacity, mode.bps, TEST_SOURCE);
                 producerList.add(new OrderedProducerWithDrift(consumer1, messagesPerProducer,
                         (int)systemDelay, mode.ws));
-                SynchronizedConsumer<Object> consumer2 = ziploq.registerOrdered(capacity, mode.bps);
+                SynchronizedConsumer<Object> consumer2 = ziploq.registerOrdered(capacity, mode.bps, TEST_SOURCE);
                 producerList.add(new OrderedProducerWithJumps(consumer2, messagesPerProducer,
                         100, 100, mode.ws));
-                SynchronizedConsumer<Object> consumer3 = ziploq.registerOrdered(capacity, mode.bps);
+                SynchronizedConsumer<Object> consumer3 = ziploq.registerOrdered(capacity, mode.bps, TEST_SOURCE);
                 producerList.add(new QuietOrderedProducer(consumer3, messagesPerProducer, 0.5, mode.ws));
             }
         }
@@ -248,13 +250,13 @@ public class OrderedInputPerformance {
             this.producerList = new ArrayList<>();
             int messagesPerProducer = (totalMessages / (3*producerSets)) + 1;
             for(int i=0;i<producerSets;i++) {
-                SynchronizedConsumer<Object> consumer1 = ziploq.registerOrdered(capacity, mode.bps);
+                SynchronizedConsumer<Object> consumer1 = ziploq.registerOrdered(capacity, mode.bps, TEST_SOURCE);
                 producerList.add(new OrderedProducerWithDrift(consumer1, messagesPerProducer,
                         (int)systemDelay, mode.ws));
-                SynchronizedConsumer<Object> consumer2 = ziploq.registerOrdered(capacity, mode.bps);
+                SynchronizedConsumer<Object> consumer2 = ziploq.registerOrdered(capacity, mode.bps, TEST_SOURCE);
                 producerList.add(new OrderedProducerWithDrift(consumer2, messagesPerProducer,
                         (int)systemDelay, mode.ws));
-                SynchronizedConsumer<Object> consumer3 = ziploq.registerOrdered(capacity, mode.bps);
+                SynchronizedConsumer<Object> consumer3 = ziploq.registerOrdered(capacity, mode.bps, TEST_SOURCE);
                 producerList.add(new OrderedProducerWithDrift(consumer3, messagesPerProducer,
                         (int)systemDelay, mode.ws));
             }

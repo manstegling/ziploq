@@ -41,10 +41,10 @@ public class SynchronizedConsumerImpl<T> implements SynchronizedConsumer<T> {
     private boolean inHeads = false; //only ever modified by Ziploq output thread
     
     SynchronizedConsumerImpl(SpscSyncQueue<T> queue, long systemDelay,
-            BackPressureStrategy strategy, Runnable signalUpdate) {
+            BackPressureStrategy strategy, Runnable signalUpdate, String name) {
         this.queue = queue;
         this.systemDelay = systemDelay;
-        this.id = ID_PREFIX + ID_GEN.incrementAndGet();
+        this.id = ID_PREFIX + ID_GEN.incrementAndGet() + "-" + name;
         this.strategy = strategy;
         this.signalUpdate = signalUpdate;
     }

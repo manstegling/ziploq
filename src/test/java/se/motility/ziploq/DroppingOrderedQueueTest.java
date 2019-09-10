@@ -26,7 +26,7 @@ public class DroppingOrderedQueueTest extends AbstractOrderedQueueTest {
     public void acceptedMessages() {
         int capacity = 4; //4 is minimum capacity of underlying queue
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(capacity, getStrategy()); 
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(capacity, getStrategy(), TEST_SOURCE); 
         
         assertNull(ziploq.poll());
         

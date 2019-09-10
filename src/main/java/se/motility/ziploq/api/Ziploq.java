@@ -121,17 +121,18 @@ public interface Ziploq<E> {
      * @param softCapacity of the buffer; rounded up to the next power of 2 (if not already
      * power of 2). Messages having business timestamps in the last {@code businessDelay}
      * milliseconds won't count towards the total capacity.
-     * @param comparator to use if messages from multiple queues have the exact same business
-     * timestamp. If {@link Optional#empty} is provided, no ordering is imposed on ties.
      * @param strategy determining whether messages should be dropped ({@link
      * BackPressureStrategy#DROP}) when queues are full
      * or if producer threads should have to wait ({@link BackPressureStrategy#BLOCK})
+     * @param sourceName associated with this input source
+     * @param comparator to use if messages from multiple queues have the exact same business
+     * timestamp. If {@link Optional#empty} is provided, no ordering is imposed on ties
      * @param <T> message type; must be a subclass of the synchronized type
      * @return {@link SynchronizedConsumer} to feed with input data
      */
     <T extends E> SynchronizedConsumer<T> registerUnordered(
                 long businessDelay, int softCapacity, BackPressureStrategy strategy,
-                Optional<Comparator<T>> comparator);
+                String sourceName, Optional<Comparator<T>> comparator);
     
     /**
      * Registers a new ordered input source to be synchronized.
@@ -143,11 +144,12 @@ public interface Ziploq<E> {
      * @param strategy determining whether messages should be dropped ({@link
      * BackPressureStrategy#DROP}) when queues are full or if producer threads should have to
      * wait ({@link BackPressureStrategy#BLOCK})
+     * @param sourceName associated with this input source
      * @param <T> message type; must be a subclass of the synchronized type
      * @return {@link SynchronizedConsumer} to feed the input data into
      */
     <T extends E> SynchronizedConsumer<T> registerOrdered(
-                int capacity, BackPressureStrategy strategy);
+                int capacity, BackPressureStrategy strategy, String sourceName);
     
     
     /**

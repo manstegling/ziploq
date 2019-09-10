@@ -37,7 +37,7 @@ public class BlockingOrderedQueueTest extends AbstractOrderedQueueTest {
         int capacity = 4;
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(capacity, getStrategy());
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(capacity, getStrategy(), TEST_SOURCE);
         
         Phaser phaser = new Phaser();
 

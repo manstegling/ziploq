@@ -39,7 +39,7 @@ public class BlockingUnorderedQueueTest extends AbstractUnorderedQueueTest {
         int capacity = 8;
         int bDelay = 10;
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(bDelay, capacity, getStrategy(), Optional.empty());
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(bDelay, capacity, getStrategy(), TEST_SOURCE, Optional.empty());
         
         Phaser ours = new Phaser();
         Phaser remote = new Phaser();

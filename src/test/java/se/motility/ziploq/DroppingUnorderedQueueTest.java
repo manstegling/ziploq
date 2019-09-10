@@ -27,7 +27,7 @@ public class DroppingUnorderedQueueTest extends AbstractUnorderedQueueTest {
         long delay = 5L;
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 2, getStrategy(), Optional.of(COMPARATOR));
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 2, getStrategy(), TEST_SOURCE, Optional.of(COMPARATOR));
         
         assertNull(ziploq.poll());
         

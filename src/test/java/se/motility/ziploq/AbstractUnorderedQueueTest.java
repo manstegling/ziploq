@@ -17,6 +17,7 @@ import se.motility.ziploq.api.ZiploqFactory;
 @SuppressWarnings("unused")
 public abstract class AbstractUnorderedQueueTest {
     
+    static final String TEST_SOURCE = "SOURCE";
     abstract BackPressureStrategy getStrategy();
 
     @Test
@@ -25,7 +26,7 @@ public abstract class AbstractUnorderedQueueTest {
         long delay = 5L;
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), Optional.empty());
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), TEST_SOURCE, Optional.empty());
         
         //E1: (TS1, 0)
         TestEntry e1 = consume(consumer, OBJECT_1, TS_1,             ZERO); //#1
@@ -52,7 +53,7 @@ public abstract class AbstractUnorderedQueueTest {
         long delay = 5L;
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), Optional.empty());
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), TEST_SOURCE, Optional.empty());
         
         //E1: (TS1+3, 0)
         TestEntry e1 = consume(consumer, OBJECT_1, TS_1 + 3,         ZERO); //#4
@@ -85,7 +86,7 @@ public abstract class AbstractUnorderedQueueTest {
         long delay = 5L;
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), Optional.of(COMPARATOR));
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), TEST_SOURCE, Optional.of(COMPARATOR));
         
         //E1: (TS1, 0, O2)
         TestEntry e1 = consume(consumer, OBJECT_2, TS_1,             ZERO); //#2
@@ -120,7 +121,7 @@ public abstract class AbstractUnorderedQueueTest {
         long sDelay = 10L;
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(sDelay, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(bDelay, 5, getStrategy(), Optional.of(COMPARATOR));
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(bDelay, 5, getStrategy(), TEST_SOURCE, Optional.of(COMPARATOR));
         
         //E1: (TS1, TS1, O1)
         TestEntry e1 = consume(consumer, OBJECT_1, TS_1, TS_1);              //#1
@@ -150,7 +151,7 @@ public abstract class AbstractUnorderedQueueTest {
     @Test(expected = IllegalStateException.class)
     public void onEventAfterComplete() {
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(10L, 5, getStrategy(), Optional.of(COMPARATOR));
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(10L, 5, getStrategy(), TEST_SOURCE, Optional.of(COMPARATOR));
         consumer.complete();
         consume(consumer, OBJECT_1, ZERO, ZERO);
         fail();
@@ -159,7 +160,7 @@ public abstract class AbstractUnorderedQueueTest {
     @Test(expected = IllegalStateException.class)
     public void updateSystemTimeAfterComplete() {
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(10L, 5, getStrategy(), Optional.of(COMPARATOR));
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(10L, 5, getStrategy(), TEST_SOURCE, Optional.of(COMPARATOR));
         consumer.complete();
         consumer.updateSystemTime(TS_1);
         fail();

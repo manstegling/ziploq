@@ -34,6 +34,8 @@ import se.motility.ziploq.api.ZiploqFactory;
 
 public class ZiploqImplTest {
 
+    private static final String TEST_SOURCE = "SOURCE";
+    
     private static class SequenceChecker {
         private long ts = 0L;
         private int total = 0;
@@ -146,7 +148,7 @@ public class ZiploqImplTest {
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
         SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(
-                delay, 5, BackPressureStrategy.DROP, Optional.empty());
+                delay, 5, BackPressureStrategy.DROP, TEST_SOURCE, Optional.empty());
         
         //E1: (TS1, 0)
         TestEntry e1 = consume(consumer, OBJECT_1, TS_1, ZERO);
@@ -177,7 +179,7 @@ public class ZiploqImplTest {
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
         SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerUnordered(
-                delay, 2, BackPressureStrategy.BLOCK, Optional.empty());
+                delay, 2, BackPressureStrategy.BLOCK, TEST_SOURCE, Optional.empty());
         
         List<TestEntry> expected = new ArrayList<>();
         
@@ -210,7 +212,7 @@ public class ZiploqImplTest {
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
         SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(
-                delay, capacity, BackPressureStrategy.BLOCK, Optional.empty());
+                delay, capacity, BackPressureStrategy.BLOCK, TEST_SOURCE, Optional.empty());
         
         AsyncTestThread t = new AsyncTestThread(() -> addToQueue(consumer, messages));
         verifyBlocking(t);
@@ -231,8 +233,8 @@ public class ZiploqImplTest {
     @Test
     public void secondarySort() {
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
-        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(2, BackPressureStrategy.BLOCK);
-        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(2, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(2, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(2, BackPressureStrategy.BLOCK, TEST_SOURCE);
         
         TestEntry e1 = consume(consumer1, OBJECT_2, TS_1,     ZERO); //#2
         TestEntry e2 = consume(consumer1, OBJECT_1, TS_1 + 1, ZERO); //#3
@@ -252,8 +254,8 @@ public class ZiploqImplTest {
     @Test(timeout=10_000)
     public void orderedSignalling() {
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
-        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(2, BackPressureStrategy.BLOCK);
-        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(2, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(2, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(2, BackPressureStrategy.BLOCK, TEST_SOURCE);
         TestEntry e1 = consume(consumer1, OBJECT_1, TS_1, ZERO);
         assertNull(ziploq.poll());
         
@@ -276,7 +278,7 @@ public class ZiploqImplTest {
         int messages = 10_000;
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(2, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(2, BackPressureStrategy.BLOCK, TEST_SOURCE);
         
         AsyncTestThread t = new AsyncTestThread(() -> addToQueue(consumer, messages));
         verifyBlocking(t);
@@ -299,9 +301,9 @@ public class ZiploqImplTest {
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
         SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerUnordered(
-                delay, 5, BackPressureStrategy.BLOCK, Optional.empty());
+                delay, 5, BackPressureStrategy.BLOCK, TEST_SOURCE, Optional.empty());
         SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerUnordered(
-                delay, 5, BackPressureStrategy.BLOCK, Optional.empty());
+                delay, 5, BackPressureStrategy.BLOCK, TEST_SOURCE, Optional.empty());
         
         //Add two messages to c2; none is ready
         TestEntry e1 = consume(consumer2, OBJECT_4, TS_1, ZERO);
@@ -331,9 +333,9 @@ public class ZiploqImplTest {
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
         SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerUnordered(
-                delay, 5, BackPressureStrategy.BLOCK, Optional.empty());
+                delay, 5, BackPressureStrategy.BLOCK, TEST_SOURCE, Optional.empty());
         SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerUnordered(
-                delay, 5, BackPressureStrategy.BLOCK, Optional.empty());
+                delay, 5, BackPressureStrategy.BLOCK, TEST_SOURCE, Optional.empty());
         
         //Fill c1
         TestEntry e1 = consume(consumer1, OBJECT_1, TS_1 + 1*delay, ZERO + 1*delay);
@@ -378,7 +380,7 @@ public class ZiploqImplTest {
         int messages = 100_000;
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(1000, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(1000, BackPressureStrategy.BLOCK, TEST_SOURCE);
         
         AsyncTestThread t = new AsyncTestThread(() -> addToQueue(consumer, messages));
         verifyBlocking(t);
@@ -397,8 +399,8 @@ public class ZiploqImplTest {
         int messages = 10;
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
-        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
         
         AsyncTestThread t1 = new AsyncTestThread(() -> addToQueue(consumer1, messages));
         AsyncTestThread t2 = new AsyncTestThread(() -> addToQueue(consumer2, messages));
@@ -418,10 +420,10 @@ public class ZiploqImplTest {
         int messages = 10;
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
-        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
         SynchronizedConsumer<MsgObject> consumer3 = ziploq.registerUnordered(
-                10, 5, BackPressureStrategy.BLOCK, Optional.empty());
+                10, 5, BackPressureStrategy.BLOCK, TEST_SOURCE, Optional.empty());
 
         
         AsyncTestThread t1 = new AsyncTestThread(() -> addToQueue(consumer1, messages));
@@ -444,10 +446,10 @@ public class ZiploqImplTest {
         int messages = 1000;
         
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
-        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
         SynchronizedConsumer<MsgObject> consumer3 = ziploq.registerUnordered(
-                10, 5, BackPressureStrategy.BLOCK, Optional.empty());
+                10, 5, BackPressureStrategy.BLOCK, TEST_SOURCE, Optional.empty());
 
         
         AsyncTestThread t1 = new AsyncTestThread(() -> addToQueue(consumer1, messages));
@@ -469,8 +471,8 @@ public class ZiploqImplTest {
         long delay = 1000L;
 
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
-        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
-        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
         
         // c1
         TestEntry e1 = consume(consumer1, OBJECT_1, TS_1,     ZERO);
@@ -499,8 +501,8 @@ public class ZiploqImplTest {
         long delay = 1000L;
 
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
-        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
-        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
         
         // c2; already "in the future"
         consumer2.updateSystemTime(ZERO + 3*delay);
@@ -521,8 +523,8 @@ public class ZiploqImplTest {
         long delay = 1000L;
 
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
-        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK);
-        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK, TEST_SOURCE);
         
         // ordinary progress of c1 and c2
         TestEntry e1 = consume(consumer1, OBJECT_1, TS_1,      ZERO);               //c1
@@ -579,8 +581,8 @@ public class ZiploqImplTest {
         long delay = 1000L;
 
         Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
-        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK);
-        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK);
+        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(100, BackPressureStrategy.BLOCK, TEST_SOURCE);
         
         // ordinary progress of c1 and c2
         TestEntry e1 = consume(consumer1, OBJECT_1, TS_1,      ZERO);               //c1

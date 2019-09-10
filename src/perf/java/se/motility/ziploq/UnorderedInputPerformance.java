@@ -37,6 +37,8 @@ import se.motility.ziploq.testimpl.UnorderedProducer;
 @BenchmarkMode(Mode.SingleShotTime)
 public class UnorderedInputPerformance {
 
+    private static final String TEST_SOURCE = "SOURCE";
+    
     // -- Performance tests -- //
     
     @Benchmark
@@ -80,7 +82,7 @@ public class UnorderedInputPerformance {
             int messagesPerProducer = (totalMessages / producers) + 1;
             for (int i=0; i<producers; i++) {
                 SynchronizedConsumer<Object> consumer = ziploq.registerUnordered(
-                        delay, capacity, mode.bps, Optional.empty());
+                        delay, capacity, mode.bps, TEST_SOURCE, Optional.empty());
                 producerList.add(new UnorderedProducer(consumer, messagesPerProducer, msgsPerMilli, delay, mode.ws));
             }
         }
