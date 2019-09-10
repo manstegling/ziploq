@@ -8,6 +8,8 @@
   <description>
     A high-throughput device for merging and sequencing messages from any number of input sources
   </description>
+  <url>https://github.com/manstegling/ziploq</url>
+  <packaging>jar</packaging>
   
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
