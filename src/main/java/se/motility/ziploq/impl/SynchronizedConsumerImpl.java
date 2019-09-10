@@ -118,6 +118,11 @@ public class SynchronizedConsumerImpl<T> implements SynchronizedConsumer<T> {
     }
 
     @Override
+    public int remainingCapacity() {
+        return queue.remainingCapacity();
+    }
+    
+    @Override
     public BackPressureStrategy getStrategy() {
         return strategy;
     }

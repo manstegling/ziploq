@@ -133,14 +133,14 @@ public class ZiploqImpl<E> implements Ziploq<E> {
             effectiveCmp = comparator;
         }
         SpscSyncQueue<T> queue = SpscSyncQueueFactory.createUnordered(
-                businessDelay, systemDelay, softCapacity, effectiveCmp);
+                businessDelay, systemDelay, softCapacity, strategy, effectiveCmp);
         return register(queue, false, strategy, sourceName);
     }
     
     @Override
     public <T extends E> SynchronizedConsumer<T> registerOrdered(int capacity,
             BackPressureStrategy strategy, String sourceName) {
-        SpscSyncQueue<T> queue = SpscSyncQueueFactory.createOrdered(capacity);
+        SpscSyncQueue<T> queue = SpscSyncQueueFactory.createOrdered(capacity, strategy);
         return register(queue, true, strategy, sourceName);
     }
     

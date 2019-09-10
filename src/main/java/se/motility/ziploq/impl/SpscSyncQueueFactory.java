@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Måns Tegling
+ * Copyright (c) 2018-2019 Måns Tegling
  * 
  * Use of this source code is governed by the MIT license that can be found in the LICENSE file.
  */
@@ -7,6 +7,8 @@ package se.motility.ziploq.impl;
 
 import java.util.Comparator;
 import java.util.Optional;
+
+import se.motility.ziploq.api.BackPressureStrategy;
 
 /**
  * Factory for creating instances of {@link SpscSyncQueue} 
@@ -33,24 +35,30 @@ public interface SpscSyncQueueFactory {
      * @return {@code SpscSyncQueue} to use with unordered input
      */
     public static <E> SpscSyncQueue<E> createUnordered(long businessDelay, long systemDelay,
-            int softCapacity, Optional<Comparator<E>> comparator) {
+            int softCapacity, BackPressureStrategy strategy, Optional<Comparator<E>> comparator) {
         ArgChecker.validateLong(businessDelay, 0, false, "businessDelay");
         ArgChecker.validateLong(businessDelay, systemDelay, true, "businessDelay");
         ArgChecker.validateLong(systemDelay, 0, false, "systemDelay");
         ArgChecker.validateLong(softCapacity, 1, false, "capacity");
-        return new UnorderedSyncQueue<>(businessDelay, systemDelay, softCapacity, comparator);
+        return strategy == BackPressureStrategy.UNBOUNDED
+                ? UnboundedSyncQueue.unorderedSyncQueue(businessDelay, systemDelay, softCapacity, comparator)
+                : new UnorderedSyncQueue<>(businessDelay, systemDelay, softCapacity, comparator);
 
     }
     
     /**
      * Factory method for creating a {@link SpscSyncQueue} for ordered input
      * @param capacity of the queue; rounded up to the next power of 2 (if not already power of 2) 
+     * @param strategy 
      * @param <E> message type
      * @return {@code SpscSyncQueue} to use with ordered input
      */
-    public static <E> SpscSyncQueue<E> createOrdered(int capacity) {
+    public static <E> SpscSyncQueue<E> createOrdered(int capacity, BackPressureStrategy strategy) {
         ArgChecker.validateLong(capacity, 1, false, "capacity");
-        return new OrderedSyncQueue<>(capacity);
+        ArgChecker.notNull(strategy, "strategy");
+        return strategy == BackPressureStrategy.UNBOUNDED
+                ? UnboundedSyncQueue.orderedSyncQueue(capacity)
+                : new OrderedSyncQueue<>(capacity);
     }
     
 }

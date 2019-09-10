@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Måns Tegling
+ * Copyright (c) 2018-2019 Måns Tegling
  * 
  * Use of this source code is governed by the MIT license that can be found in the LICENSE file.
  */
@@ -25,16 +25,17 @@ import se.motility.ziploq.api.RuntimeInterruptedException;
  */
 public class OrderedSyncQueue<E> implements SpscSyncQueue<E> {
     
+    private static final long NANO_WAIT = 1_000_000L; //1ms: throughput ~ capacity x 1000 events/s
     private static final Logger LOG = LoggerFactory.getLogger(OrderedSyncQueue.class);
     
     private final Queue<Entry<E>> ready;
-    private final long nanoWaitTime;
+    private final int capacity;
     
     private long lastTs = 0;
     
     OrderedSyncQueue(int capacity) {
         this.ready = QueueFactory.newQueue(ConcurrentQueueSpec.createBoundedSpsc(capacity));
-        this.nanoWaitTime = capacity * 50L; //target: 20M events/s
+        this.capacity = capacity;
     }
 
     @Override
@@ -50,7 +51,7 @@ public class OrderedSyncQueue<E> implements SpscSyncQueue<E> {
             if(Thread.currentThread().isInterrupted()) {
                 throw new RuntimeInterruptedException("Thread interrupted");
             }
-            WaitStrategy.specificWait(nanoWaitTime);
+            WaitStrategy.specificWait(NANO_WAIT);
         }
         return true;
     }
@@ -73,6 +74,16 @@ public class OrderedSyncQueue<E> implements SpscSyncQueue<E> {
     @Override
     public int size() {
         return ready.size();
+    }
+    
+    @Override
+    public int readySize() {
+        return size();
+    }
+    
+    @Override
+    public int remainingCapacity() {
+        return capacity - size();
     }
     
     private void verifyTimestamp(Entry<E> entry) {

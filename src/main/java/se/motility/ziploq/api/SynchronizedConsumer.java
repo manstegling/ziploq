@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Måns Tegling
+ * Copyright (c) 2018-2019 Måns Tegling
  * 
  * Use of this source code is governed by the MIT license that can be found in the LICENSE file.
  */
@@ -33,7 +33,8 @@ public interface SynchronizedConsumer<E> {
      * @param businessTs business timestamp (epoch)
      * @param systemTs system timestamp (epoch)
      * @return {@code true} if event was successfully added,
-     * {@code false} if dropped
+     * {@code false} if dropped or added but capacity was reached (see
+     * {@link BackPressureStrategy#UNBOUNDED})
      * @throws RuntimeInterruptedException if thread is interrupted during wait
      * (blocking consumers only)
      * @throws IllegalStateException if called after {@link #complete} has been called
@@ -64,8 +65,21 @@ public interface SynchronizedConsumer<E> {
     void complete();
     
     /**
+     * Returns the number of additional messages the consumer currently can accept
+     * without having to exercise its back-pressure strategy. Since the downstream
+     * most probably is busy processing messages, the number may change at any time.
+     * <p>
+     * Please note that calling this can be significantly slower than {@link #onEvent}.
+     * If you think you have to call this once per message, please re-consider what
+     * {@link BackPressureStrategy} you intend to use.
+     * @return the number of additional messages the consumer currently can accept
+     */
+    int remainingCapacity();
+    
+    /**
      * Returns the backpressure strategy associated with the consumer
-     * @return {@link BackPressureStrategy#BLOCK} or {@link BackPressureStrategy#DROP}
+     * @return {@link BackPressureStrategy#BLOCK}, {@link BackPressureStrategy#DROP}
+     * or {@link BackPressureStrategy#UNBOUNDED}
      */
     BackPressureStrategy getStrategy();
     

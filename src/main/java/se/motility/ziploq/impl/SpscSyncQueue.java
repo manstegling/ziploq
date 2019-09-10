@@ -62,4 +62,17 @@ public interface SpscSyncQueue<E> {
      */
     int size();
     
+    /**
+     * Returns the number of entries available for polling. For a queue with sorting
+     * functionality this will be less than or equal to the total {@link #size()} 
+     * @return the number of entries available for polling
+     */
+    int readySize();
+    
+    /**
+     * Returns the additional number of messages this queue can accept given capacity constraints
+     * @return the additional number of messages this queue can accept
+     */
+    int remainingCapacity();
+    
 }

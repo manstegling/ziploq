@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Måns Tegling
+ * Copyright (c) 2018-2019 Måns Tegling
  * 
  * Use of this source code is governed by the MIT license that can be found in the LICENSE file.
  */
@@ -31,6 +31,7 @@ import se.motility.ziploq.api.RuntimeInterruptedException;
  */
 public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
     
+    private static final long NANO_WAIT = 1_000_000L; //1ms: throughput ~ capacity x 1000 events/s
     private final Comparator<Entry<E>> comparator = Comparator.comparingLong(Entry::getBusinessTs);
     
     private static final Logger LOG = LoggerFactory.getLogger(UnorderedSyncQueue.class);
@@ -40,10 +41,10 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
     private final long businessDelay;
     private final long systemDelay;
     private final int softCapacity;
-    private final long nanoWaitTime;
     
     private long ts1Max = 0L; //start from 0 to prevent underflow
     private long ts2Max = 0L;
+    private int lSize; //store Producer thread's local size guess to avoid unnecessary size() traversals
     
     UnorderedSyncQueue(long businessDelay, long systemDelay, int softCapacity, Optional<Comparator<E>> comparator) {
         Comparator<Entry<E>> cmp = comparator
@@ -54,7 +55,6 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
         this.businessDelay = businessDelay;
         this.systemDelay = systemDelay;
         this.softCapacity = softCapacity;
-        this.nanoWaitTime = softCapacity * 50L; //target: 20M events/s
     }
     
     @Override
@@ -80,7 +80,7 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
             if(Thread.currentThread().isInterrupted()) {
                 throw new RuntimeInterruptedException("Thread interrupted");
             }
-            WaitStrategy.specificWait(nanoWaitTime);
+            WaitStrategy.specificWait(NANO_WAIT);
         }
         return true;
     }
@@ -109,13 +109,27 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
     
     @Override
     public int size() {
-        return staging.size() + ready.size();
+        //Total size; including messages not ready yet
+        return staging.size() + readySize();
+    }
+    
+    @Override
+    public int readySize() {
+        return ready.size();
+    }
+    
+    @Override
+    public int remainingCapacity() {
+        return softCapacity - readySize();
     }
     
     private boolean enqueue(Entry<E> entry) {
         updateVectorClock(entry);
         promoteMessages();
-        return ready.size() < softCapacity && staging.offer(entry);
+        if (lSize >= softCapacity) {
+            lSize = readySize(); //update guess to actual size ("costly")
+        }
+        return lSize < softCapacity && staging.offer(entry);
     }
     
     private void updateVectorClock(Entry<E> entry) {
@@ -139,6 +153,7 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
     private void promoteMessages() {
         while (isInputReady()) {
             ready.add(staging.poll());
+            lSize++;
         }
     }
 

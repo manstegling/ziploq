@@ -13,15 +13,21 @@ package se.motility.ziploq.api;
 public enum BackPressureStrategy {
 
     /**
-     * Make producer thread wait until capacity
+     * Makes producer thread wait until capacity
      * is available on associated queue.
      */
     BLOCK,
     
     /**
-     * Drop new messages if capacity is
+     * Drops new messages if capacity is
      * full on associated queue.
      */
-    DROP;
+    DROP,
+    
+    /**
+     * No back-pressure is exercised but signals
+     * when configured capacity has been reached.
+     */
+    UNBOUNDED;
     
 }
