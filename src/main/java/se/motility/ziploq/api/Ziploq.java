@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Måns Tegling
+ * Copyright (c) 2018-2019 Måns Tegling
  * 
  * Use of this source code is governed by the MIT license that can be found in the LICENSE file.
  */
@@ -9,6 +9,8 @@ import java.util.Comparator;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import se.motility.ziploq.impl.Splitr;
+
 /**
  * A device for synchronizing and sequencing messages from any number of input sources.
  * <p>
@@ -16,31 +18,18 @@ import java.util.stream.Stream;
  * according to its nature. Both sources providing ordered and unordered data are
  * supported. See {@link #registerOrdered} and {@link #registerUnordered} for more information.
  * <p>
- * {@code Ziploq} uses a two-clock system; the first clock being the <i>business
- * clock</i> and the second the <i>system clock</i> (wall-clock time). These two clocks are
- * assumed to be shared by all data sources (or at least not drifting outside the configured
- * safety-margin). All messages are sequenced with respect to the business clock, with the
- * possibility of providing a {@code Comparator} to resolve ordering of any ties. The system
- * clock is used to allow advancing the sequence at times when input sources are silent.
- * There are two parameters associated with message sequencing; <i>business delay</i> and
- * <i>system delay</i>.
+ * {@code Ziploq} relies on a global business clock. All messages are sequenced with respect to
+ * the this business clock, with the possibility of providing a {@code Comparator} to resolve
+ * ordering of any ties.
  * <p>
- * Business delay is specified for unordered input sources and defines the upper bound on how
+ * For unordered input sources the parameter <i>business delay</i> defines the upper bound on how
  * <i>late</i> messages may arrive in relation to other messages from the same source. In
  * particular, if an unordered source is configured with business delay {@code x} and the highest
  * business timestamp for a processed message so far is {@code tsMax}, the contract states that
  * only new messages having business timestamp {@code tsMax - x} or higher will be sequenced
  * correctly.
  * <p>
- * System delay specifies how much system time must pass until messages may be emitted at times
- * when input sources are silent. The {@code global system time} is defined by the input source
- * that has the lowest current system time. This guarantees that all input sources are up-to-date
- * and healthy (although potentially silent message-wise) before advancing the message sequence.
- * More formally; if one or more sources are silent, messages having a system timestamp higher
- * than {@code global system time + system delay} may be emitted. The system delay must be set to
- * a value higher than any configured business delay of registered unordered sources.
- * <p>
- * There are three methods for retrieving synchronized messages from this device; {@link #stream},
+ * There are three methods for retrieving sequenced messages from this device; {@link #stream},
  * {@link #take} and {@link #poll}. For normal data processing purposes, building data pipelines
  * with {@code stream()} is encouraged.
  * <p>
@@ -78,32 +67,34 @@ public interface Ziploq<E> {
     /**
      * Returns a {@code Stream} consisting of synchronized messages. The length of this
      * {@code Stream} is undefined; messages will be provided until all associated
-     * {@link SynchronizedConsumer}s have completed. Until completed, the stream will
-     * <i>block</i> the thread when awaiting new messages to emit.
+     * {@link SynchronizedConsumer} instances have completed. Until completed, the stream
+     * will <i>block</i> the thread when awaiting new messages to emit.
      * <p>
      * Use this method to build a data pipeline with backpressure based on synchronized messages.
      * @return {@code Stream} consisting of synchronized messages
      * @throws RuntimeInterruptedException if thread is interrupted during wait
      */
-    Stream<Entry<E>> stream();
+    default Stream<Entry<E>> stream() {
+        return Splitr.stream(this::take, getEndSignal(), getComparator());
+    }
     
     /**
      * Retrieves synchronized message. Waits if necessary for a message to become available.
-     * Recommended retrieval method for very high-throughput applications that don't allow
-     * message drop.
-     * @return synchronized message wrapped in an {@link Entry}
+     * After all associated {@link SynchronizedConsumer} instances have completed and all messages
+     * have been taken, a special end marker entry is emitted (see {@link #getEndSignal}).
+     * @return a synchronized message wrapped in an {@link Entry}
      * @throws InterruptedException if thread is interrupted during wait
      */
     Entry<E> take() throws InterruptedException;
     
     /**
-     * Retrieves synchronized message. This method will return immediately even
-     * if no message is available. Recommended retrieval method for very high-throughput
-     * applications that allow message drop.
+     * Retrieves synchronized message. This method will return immediately even if no message is
+     * available. After all associated {@link SynchronizedConsumer} instances have completed and
+     * all messages have been taken, a special end marker entry is emitted (see {@link #getEndSignal}).
      * <p>
      * <i>Note:</i> If dropping messages is not allowed; rather than calling this method
      * in a busy-spin fashion, use method {@link #take()}. Repeatedly calling
-     * this method will cause thread contention.
+     * this method may cause thread contention.
      * @return a synchronized message wrapped in an {@link Entry}
      */
     Entry<E> poll();
@@ -112,19 +103,19 @@ public interface Ziploq<E> {
      * Registers a new unordered input source to be synchronized.
      * <p>
      * The input data will be sorted with respect to business timestamp. Ordering of ties is
-     * first resolved by this {@code Ziploq}'s configured {@code Comparator}. Remaining
+     * first resolved by this {@code Ziploq} instance's configured {@code Comparator}. Remaining
      * ties are then resolved by the {@code Comparator} provided when calling this method. If
      * no {@code Comparator} is provided, no ordering is imposed on remaining ties.
      * @param businessDelay the maximum business time delay allowed for new messages, compared
-     * to previous messages from the same source. Must not be greater than the <i>system delay</i>
-     * of the {@code Ziploq}.
+     * to previous messages from the same source.
      * @param softCapacity of the buffer; rounded up to the next power of 2 (if not already
      * power of 2). Messages having business timestamps in the last {@code businessDelay}
      * milliseconds won't count towards the total capacity.
      * @param strategy determining whether messages should be dropped ({@link
-     * BackPressureStrategy#DROP}) when queues are full
-     * or if producer threads should have to wait ({@link BackPressureStrategy#BLOCK})
-     * @param sourceName associated with this input source
+     * BackPressureStrategy#DROP}) when queues are full or if producer threads should have to
+     * wait ({@link BackPressureStrategy#BLOCK}). There's also an option to use unbounded buffers
+     * ({@link BackPressureStrategy#UNBOUNDED}).
+     * @param sourceName to be associated with this input source
      * @param comparator to use if messages from multiple queues have the exact same business
      * timestamp. If {@link Optional#empty} is provided, no ordering is imposed on ties
      * @param <T> message type; must be a subclass of the synchronized type
@@ -138,19 +129,26 @@ public interface Ziploq<E> {
      * Registers a new ordered input source to be synchronized.
      * <p>
      * The input data must form a non-decreasing sequence with respect to business timestamp.
-     * Any ties must follow the ordering defined by this {@code Ziploq}'s configured {@code
-     * Comparator}. If no {@code Comparator} has been provided, no ordering is imposed on ties.
+     * Any ties must follow the ordering defined by this {@code Ziploq} instance's configured
+     * {@code Comparator}. If no {@code Comparator} has been provided, no ordering is imposed on ties.
      * @param capacity of the buffer; rounded up to the next power of 2 (if not already power of 2)
      * @param strategy determining whether messages should be dropped ({@link
      * BackPressureStrategy#DROP}) when queues are full or if producer threads should have to
-     * wait ({@link BackPressureStrategy#BLOCK})
-     * @param sourceName associated with this input source
+     * wait ({@link BackPressureStrategy#BLOCK}). There's also an option to use unbounded buffers
+     * ({@link BackPressureStrategy#UNBOUNDED}).
+     * @param sourceName to be associated with this input source
      * @param <T> message type; must be a subclass of the synchronized type
      * @return {@link SynchronizedConsumer} to feed the input data into
      */
     <T extends E> SynchronizedConsumer<T> registerOrdered(
                 int capacity, BackPressureStrategy strategy, String sourceName);
-    
+ 
+    /**
+     * Returns the effective {@code Comparator} used for sequencing messages from the associated
+     * {@link SynchronizedConsumer} instances.
+     * @return effective comparator used to sequence input data
+     */
+    Comparator<Entry<E>> getComparator();
     
     /**
      * The end marker {@code Entry}. This {@code Entry} is immutable and serializable.

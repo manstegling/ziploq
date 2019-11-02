@@ -86,15 +86,17 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
     }
     
     private void verifyTimestamps(long businessTs, long systemTs) {
-        if (ts1Max - businessTs > businessDelay) {
-            LOG.warn("Item arrived too late (business timestamp). "
-                    + "Breaks sorting contract. Max {}, now {}.",
-                    ts1Max, businessTs);
-        }
-        if (systemTs < ts2Max) {
-            LOG.warn("System timestamp has been updated in non-increasing order. "
-                    + "Breaks sorting contract. Max {}, now {}.",
-                    ts2Max, systemTs);
+        if (LOG.isDebugEnabled()) {
+            if (ts1Max - businessTs > businessDelay) {
+                LOG.debug("Item arrived too late (business timestamp). "
+                        + "Breaks ordering contract. Max {}, now {}.",
+                        ts1Max, businessTs);
+            }
+            if (systemTs < ts2Max) {
+                LOG.debug("System timestamp has been updated in non-increasing order. "
+                        + "Breaks ordering contract. Max {}, now {}.",
+                        ts2Max, systemTs);
+            }
         }
     }
 
@@ -120,7 +122,7 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
     
     @Override
     public int remainingCapacity() {
-        return softCapacity - readySize();
+        return Math.max(softCapacity - readySize(), 0);
     }
     
     private boolean enqueue(Entry<E> entry) {

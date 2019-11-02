@@ -16,8 +16,8 @@ import org.junit.Test;
 import se.motility.ziploq.SyncTestUtils.MsgObject;
 import se.motility.ziploq.SyncTestUtils.TestEntry;
 import se.motility.ziploq.api.BackPressureStrategy;
-import se.motility.ziploq.api.SynchronizedConsumer;
-import se.motility.ziploq.api.Ziploq;
+import se.motility.ziploq.api.FlowConsumer;
+import se.motility.ziploq.api.ZipFlow;
 import se.motility.ziploq.api.ZiploqFactory;
 
 public class BlockingUnorderedQueueTest extends AbstractUnorderedQueueTest {
@@ -38,8 +38,8 @@ public class BlockingUnorderedQueueTest extends AbstractUnorderedQueueTest {
         
         int capacity = 8;
         int bDelay = 10;
-        Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(bDelay, capacity, getStrategy(), TEST_SOURCE, Optional.empty());
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
+        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(bDelay, capacity, getStrategy(), TEST_SOURCE, Optional.empty());
         
         Phaser ours = new Phaser();
         Phaser remote = new Phaser();
@@ -67,7 +67,7 @@ public class BlockingUnorderedQueueTest extends AbstractUnorderedQueueTest {
         failOnException(t::join);
     }
     
-    private void produce(SynchronizedConsumer<MsgObject> consumer, int capacity, int businessDelay, Phaser remote, Phaser ours, List<TestEntry> result) {
+    private void produce(FlowConsumer<MsgObject> consumer, int capacity, int businessDelay, Phaser remote, Phaser ours, List<TestEntry> result) {
         ours.register();
         //Fill queue up to capacity
         IntStream.range(0, capacity-1)

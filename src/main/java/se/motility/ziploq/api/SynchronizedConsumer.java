@@ -31,7 +31,6 @@ public interface SynchronizedConsumer<E> {
      * System time must always be updated in a non-decreasing sequence.
      * @param message to synchronize
      * @param businessTs business timestamp (epoch)
-     * @param systemTs system timestamp (epoch)
      * @return {@code true} if event was successfully added,
      * {@code false} if dropped or added but capacity was reached (see
      * {@link BackPressureStrategy#UNBOUNDED})
@@ -39,27 +38,14 @@ public interface SynchronizedConsumer<E> {
      * (blocking consumers only)
      * @throws IllegalStateException if called after {@link #complete} has been called
      */
-    boolean onEvent(E message, long businessTs, long systemTs);
- 
-    /**
-     * Advances system time without adding an associated event. Should be called when
-     * an input source is <i>healthy but silent</i> (i.e. no upstream connection issues
-     * and system time is flowing but the progress of business time is unknown).
-     * <p>
-     * System time must be updated in a non-decreasing
-     * sequence.
-     * @param systemTs system timestamp (epoch)
-     * @throws IllegalStateException if called after {@link #complete} has been called
-     */
-    void updateSystemTime(long systemTs);
+    boolean onEvent(E message, long businessTs);
     
     /**
      * This will send a signal to the associated {@link Ziploq} to de-register this
      * consumer after all currently enqueued messages have been processed. Call when
      * no more events will be added. 
      * <p>
-     * After this method has been called, no further calls
-     * to {@link #onEvent} or
+     * After this method has been called, no further calls to {@link #onEvent} or
      * {@link #updateSystemTime} are allowed.
      */
     void complete();

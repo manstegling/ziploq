@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import se.motility.ziploq.api.SynchronizedConsumer;
+import se.motility.ziploq.api.FlowConsumer;
 import se.motility.ziploq.testapi.Producer;
 
 public abstract class AbstractProducer implements Producer {
@@ -20,7 +20,7 @@ public abstract class AbstractProducer implements Producer {
     public final Thread thread;
     public final Random random;
     
-    public AbstractProducer(SynchronizedConsumer<Object> consumer,
+    public AbstractProducer(FlowConsumer<Object> consumer,
             int messages, Runnable waitStrategy) {
         Runnable task = () -> produce(consumer, messages, waitStrategy);
         String threadName = getClass().getSimpleName() + "-" + ID.incrementAndGet();
@@ -28,7 +28,7 @@ public abstract class AbstractProducer implements Producer {
         this.random = new Random(thread.getName().hashCode());
     }
         
-    private void produce(SynchronizedConsumer<Object> consumer, int messages,
+    private void produce(FlowConsumer<Object> consumer, int messages,
             Runnable waitStrategy) {
         long businessTime = START_TIME;
         long systemTime = START_TIME;

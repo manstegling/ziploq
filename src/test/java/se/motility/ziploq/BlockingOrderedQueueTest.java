@@ -14,8 +14,8 @@ import java.util.stream.IntStream;
 import org.junit.Test;
 
 import se.motility.ziploq.api.BackPressureStrategy;
-import se.motility.ziploq.api.SynchronizedConsumer;
-import se.motility.ziploq.api.Ziploq;
+import se.motility.ziploq.api.FlowConsumer;
+import se.motility.ziploq.api.ZipFlow;
 import se.motility.ziploq.api.ZiploqFactory;
 
 public class BlockingOrderedQueueTest extends AbstractOrderedQueueTest {
@@ -36,8 +36,8 @@ public class BlockingOrderedQueueTest extends AbstractOrderedQueueTest {
         
         int capacity = 4;
         
-        Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(capacity, getStrategy(), TEST_SOURCE);
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
+        FlowConsumer<MsgObject> consumer = ziploq.registerOrdered(capacity, getStrategy(), TEST_SOURCE);
         
         Phaser phaser = new Phaser();
 
@@ -59,7 +59,7 @@ public class BlockingOrderedQueueTest extends AbstractOrderedQueueTest {
         failOnException(t::join);
     }
     
-    private void produce(SynchronizedConsumer<MsgObject> consumer, int capacity, Phaser phaser, List<TestEntry> result) {
+    private void produce(FlowConsumer<MsgObject> consumer, int capacity, Phaser phaser, List<TestEntry> result) {
         phaser.register();
         //Fill queue up to capacity
         IntStream.range(0, capacity)

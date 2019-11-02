@@ -7,6 +7,7 @@ package se.motility.ziploq.impl;
 
 import java.util.Queue;
 
+import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.QueueFactory;
 import org.jctools.queues.spec.ConcurrentQueueSpec;
 import org.slf4j.Logger;
@@ -25,7 +26,7 @@ import se.motility.ziploq.api.RuntimeInterruptedException;
  */
 public class OrderedSyncQueue<E> implements SpscSyncQueue<E> {
     
-    private static final long NANO_WAIT = 1_000_000L; //1ms: throughput ~ capacity x 1000 events/s
+    private static final long ONE_MILLISECOND = 1_000_000L; //throughput ~ capacity x 1000 events/s
     private static final Logger LOG = LoggerFactory.getLogger(OrderedSyncQueue.class);
     
     private final Queue<Entry<E>> ready;
@@ -35,7 +36,8 @@ public class OrderedSyncQueue<E> implements SpscSyncQueue<E> {
     
     OrderedSyncQueue(int capacity) {
         this.ready = QueueFactory.newQueue(ConcurrentQueueSpec.createBoundedSpsc(capacity));
-        this.capacity = capacity;
+        this.capacity = ready instanceof MessagePassingQueue ? //retrieve actual capacity (power of 2)
+            ((MessagePassingQueue<?>) ready).capacity() : capacity;
     }
 
     @Override
@@ -51,7 +53,7 @@ public class OrderedSyncQueue<E> implements SpscSyncQueue<E> {
             if(Thread.currentThread().isInterrupted()) {
                 throw new RuntimeInterruptedException("Thread interrupted");
             }
-            WaitStrategy.specificWait(NANO_WAIT);
+            WaitStrategy.specificWait(ONE_MILLISECOND);
         }
         return true;
     }
@@ -87,13 +89,15 @@ public class OrderedSyncQueue<E> implements SpscSyncQueue<E> {
     }
     
     private void verifyTimestamp(Entry<E> entry) {
-        long updTs = entry.getBusinessTs();
-        if (updTs < lastTs) {
-            LOG.warn("Business timestamp has been updated in non-increasing order. "
-                    + "Breaks sorting contract. Last {}, now {}.",
-                    lastTs, updTs);
+        if (LOG.isDebugEnabled()) {
+            long updTs = entry.getBusinessTs();
+            if (updTs < lastTs) {
+                LOG.debug("Business timestamp has been updated in non-increasing order. "
+                        + "Breaks ordering contract. Last {}, now {}.",
+                        lastTs, updTs);
+            }
+            lastTs = updTs;
         }
-        lastTs = updTs;
     }
 
 }

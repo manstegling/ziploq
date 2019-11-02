@@ -8,8 +8,8 @@ import org.junit.Test;
 import se.motility.ziploq.SyncTestUtils.MsgObject;
 import se.motility.ziploq.SyncTestUtils.TestEntry;
 import se.motility.ziploq.api.BackPressureStrategy;
-import se.motility.ziploq.api.SynchronizedConsumer;
-import se.motility.ziploq.api.Ziploq;
+import se.motility.ziploq.api.FlowConsumer;
+import se.motility.ziploq.api.ZipFlow;
 import se.motility.ziploq.api.ZiploqFactory;
 
 import static org.junit.Assert.*;
@@ -30,8 +30,8 @@ public class UnboundedOrderedQueueTest extends AbstractOrderedQueueTest {
     @Test
     public void addBeyondCapacity() throws InterruptedException {
         int capacity = 4;
-        Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(capacity, getStrategy(), TEST_SOURCE);
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
+        FlowConsumer<MsgObject> consumer = ziploq.registerOrdered(capacity, getStrategy(), TEST_SOURCE);
         
         List<TestEntry> expected = new ArrayList<>();
         long ts = TS_1;

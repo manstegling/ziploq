@@ -1,12 +1,12 @@
 package se.motility.ziploq.testimpl;
 
-import se.motility.ziploq.api.SynchronizedConsumer;
+import se.motility.ziploq.api.FlowConsumer;
 
 public class QuietOrderedProducer extends AbstractProducer {
     
     private final double fractionQuiet;
 
-    public QuietOrderedProducer(SynchronizedConsumer<Object> consumer,
+    public QuietOrderedProducer(FlowConsumer<Object> consumer,
             int messages, double fractionQuiet, Runnable waitStrategy) {
         super(consumer, messages, waitStrategy);
         this.fractionQuiet = fractionQuiet;

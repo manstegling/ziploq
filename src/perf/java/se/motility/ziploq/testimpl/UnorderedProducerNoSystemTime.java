@@ -1,10 +1,10 @@
 package se.motility.ziploq.testimpl;
 
-import se.motility.ziploq.api.SynchronizedConsumer;
+import se.motility.ziploq.api.FlowConsumer;
 
 public class UnorderedProducerNoSystemTime extends UnorderedProducer {
 
-    public UnorderedProducerNoSystemTime(SynchronizedConsumer<Object> consumer, int messages, double messagesPerMilli,
+    public UnorderedProducerNoSystemTime(FlowConsumer<Object> consumer, int messages, double messagesPerMilli,
             int maxDelay, Runnable waitStrategy) {
         super(consumer, messages, messagesPerMilli, maxDelay, waitStrategy);
     }

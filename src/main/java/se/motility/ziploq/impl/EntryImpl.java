@@ -11,7 +11,7 @@ import se.motility.ziploq.api.Entry;
  * Simple implementation of {@link Entry}.
  * <p>
  * Includes a "hidden" reference to the Ziploq consumer to which the messages was submitted,
- * which is required by {@link ZiploqImpl} for performance reasons.
+ * which is required by {@link ZipFlowImpl} for performance reasons.
  * 
  * @author M Tegling
  *
@@ -22,25 +22,25 @@ public class EntryImpl<T> implements Entry<T> {
     private static final long serialVersionUID = 2131688610740365735L;
     
     private final T item;
-    private final long primaryTs;
-    private final long secondaryTs;
-    private final transient SynchronizedConsumerImpl<T> _queueRef;
+    private final long businessTs;
+    private final long systemTs;
+    private final transient FlowConsumerImpl<T> _queueRef;
 
-    EntryImpl(T item, long primaryTs, long secondaryTs, SynchronizedConsumerImpl<T> queueRef) {
+    EntryImpl(T item, long businessTs, long systemTs, FlowConsumerImpl<T> queueRef) {
         this.item = item;
-        this.primaryTs = primaryTs;
-        this.secondaryTs = secondaryTs;
+        this.businessTs = businessTs;
+        this.systemTs = systemTs;
         this._queueRef = queueRef;
     }
 
     @Override
     public long getBusinessTs() {
-        return primaryTs;
+        return businessTs;
     }
 
     @Override
     public long getSystemTs() {
-        return secondaryTs;
+        return systemTs;
     }
 
     @Override
@@ -48,14 +48,14 @@ public class EntryImpl<T> implements Entry<T> {
         return item;
     }
     
-    SynchronizedConsumerImpl<T> getQueueRef() {
+    FlowConsumerImpl<T> getQueueRef() {
         return _queueRef;
     }
 
     @Override
     public String toString() {
-        return "businessTs: " + primaryTs +
-               ", systemTs: " + secondaryTs +
+        return "businessTs: " + businessTs +
+               ", systemTs: " + systemTs +
                ", message: " + item;
     }
 }

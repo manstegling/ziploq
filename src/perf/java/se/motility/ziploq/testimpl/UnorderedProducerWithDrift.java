@@ -1,6 +1,6 @@
 package se.motility.ziploq.testimpl;
 
-import se.motility.ziploq.api.SynchronizedConsumer;
+import se.motility.ziploq.api.FlowConsumer;
 
 public class UnorderedProducerWithDrift extends AbstractProducer {
 
@@ -13,7 +13,7 @@ public class UnorderedProducerWithDrift extends AbstractProducer {
     private long businessProgress;
     private long systemProgress;
     
-    public UnorderedProducerWithDrift(SynchronizedConsumer<Object> consumer, int messages,
+    public UnorderedProducerWithDrift(FlowConsumer<Object> consumer, int messages,
             int maxDrift, int maxDelay, Runnable waitStrategy) {
         super(consumer, messages, waitStrategy);
         this.maxDrift = maxDrift;

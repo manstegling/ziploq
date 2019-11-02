@@ -9,7 +9,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import se.motility.ziploq.api.Entry;
-import se.motility.ziploq.api.SynchronizedConsumer;
+import se.motility.ziploq.api.FlowConsumer;
 
 public class SyncTestUtils {
     
@@ -45,7 +45,7 @@ public class SyncTestUtils {
         assertEquals(expected.getSystemTs(), actual.getSystemTs());
     }
     
-    public static TestEntry consume(SynchronizedConsumer<MsgObject> consumer, MsgObject obj, long businessTs, long systemTs) {
+    public static TestEntry consume(FlowConsumer<MsgObject> consumer, MsgObject obj, long businessTs, long systemTs) {
         boolean accepted = consumer.onEvent(obj, businessTs, systemTs);
         return new TestEntry(obj, businessTs, systemTs, accepted);
     }

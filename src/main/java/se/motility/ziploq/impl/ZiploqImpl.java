@@ -11,24 +11,21 @@ import java.util.List;
 import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Queue;
-import java.util.Spliterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import se.motility.ziploq.api.BackPressureStrategy;
 import se.motility.ziploq.api.Entry;
-import se.motility.ziploq.api.RuntimeInterruptedException;
-import se.motility.ziploq.api.SynchronizedConsumer;
+import se.motility.ziploq.api.FlowConsumer;
+import se.motility.ziploq.api.ZipFlow;
 import se.motility.ziploq.api.Ziploq;
+import se.motility.ziploq.impl.SpscSyncQueueFactory.CapacityType;
 
 /**
- * Lock-free implementation of {@link Ziploq}.
+ * Lock-free implementation of {@link Ziploq} and {@link ZipFlow}.
  * <p>
  * The Producer threads are responsible for the work of managing their respective buffers.
  * In case of unordered input data, the associated Producer thread is hence also responsible
@@ -38,15 +35,17 @@ import se.motility.ziploq.api.Ziploq;
  * (inter-channel sequencing).
  * <p>
  * This separation of concern restricts memory synchronization to two points:
- * <ul>
- * <li>Enqueue/Dequeue operations in source-specific message buffers</li>
- * <li>Testing if message should be emitted based on system timestamp</li>
- * </ul>
+ * <ol>
+ *   <li>Enqueue/Dequeue operations in source-specific message buffers</li>
+ *   <li>Testing if message should be emitted based on system timestamp</li>
+ * </ol>
  * The first one is unfortunately unavoidable when moving messages from one thread to another,
  * but the impact is limited as much as possible by using lock-free concurrent queues.
  * <p>
  * The second one is only needed when one or more of the input sources are silent while system
  * time is progressing. Efficient use of memory barriers limits the cost of synchronization.
+ * If the {@code ZipFlow} functionality is not needed, setting {@code systemDelay} to 0 and
+ * using the {@code Ziploq} facade will provide a simpler API and grant some additional performance.
  * <p>
  * It should be noted that there's a third synchronization point; when additional
  * input sources are registered. However, this is implemented such that it does not affect
@@ -55,28 +54,30 @@ import se.motility.ziploq.api.Ziploq;
  * @author M Tegling
  *
  * @param <E> message type
+ * @see ZipFlow
  * @see Ziploq
  */
-public class ZiploqImpl<E> implements Ziploq<E> {
+public class ZiploqImpl<E> implements ZipFlow<E> {
 
-    private static final long LOG_INTERVAL = 60_000L; //TODO make configurable?
+    private static final boolean COMPARATOR_COMPLIANT = Boolean.getBoolean("ziploq.log.comparator_compliant");
+    private static final long WAIT_TIMEOUT = Long.getLong("ziploq.log.wait_timeout", 120_000L);
     private static final Logger LOG = LoggerFactory.getLogger(ZiploqImpl.class);
     
     @SuppressWarnings("rawtypes")
     private static final EntryImpl OUT_OF_SYNC = new EntryImpl<>(null, -1, -1, null);
 
-    private final List<SynchronizedConsumerImpl<? extends E>> queues = new ArrayList<>();
-    private final Queue<SynchronizedConsumerImpl<? extends E>> updQueues = new ConcurrentLinkedQueue<>();    
+    private final List<FlowConsumerImpl<? extends E>> queues = new ArrayList<>();
+    private final Queue<FlowConsumerImpl<? extends E>> updQueues = new ConcurrentLinkedQueue<>();    
     
     private final PriorityQueue<EntryImpl<E>> heads;
     private final long systemDelay;
     private final Comparator<Entry<E>> effectiveComparator;
     private final Optional<Comparator<E>> secondaryComparator;
     
-    private volatile boolean dirtyQueues = true;
+    private volatile boolean dirtyQueues   = true;
     private volatile boolean dirtySystemTs = true;
-    private volatile boolean complete = false;
-    private long systemTs = 0L;         //start from 0 to prevent underflow
+    private volatile boolean complete      = false;
+    private long systemTs = 0L;  //start from 0 to prevent underflow
     private EntryImpl<E> previous;
     private long lastLoggedWait;
     
@@ -90,13 +91,7 @@ public class ZiploqImpl<E> implements Ziploq<E> {
     }
     
     @Override
-    public Stream<Entry<E>> stream() {
-        return StreamSupport.stream(new Splitr(), false);
-    }
-    
-    @Override
     public Entry<E> take() throws InterruptedException {
-        debugInitWait();
         int attempt = 1;
         Entry<E> entry;
         while((entry = dequeue()) == null) {
@@ -105,7 +100,7 @@ public class ZiploqImpl<E> implements Ziploq<E> {
             } else if (Thread.interrupted()) {
                 throw new InterruptedException("Thread interrupted.");
             }
-            debugWait(attempt);
+            checkWait(attempt);
             WaitStrategy.backOffWait(attempt++);
         }
         return entry;
@@ -119,7 +114,7 @@ public class ZiploqImpl<E> implements Ziploq<E> {
     }
     
     @Override
-    public <T extends E> SynchronizedConsumer<T> registerUnordered(
+    public <T extends E> FlowConsumer<T> registerUnordered(
             long businessDelay, int softCapacity, BackPressureStrategy strategy,
             String sourceName, Optional<Comparator<T>> comparator) {
         ArgChecker.notNull(comparator, "comparator (Optional!)");
@@ -127,27 +122,36 @@ public class ZiploqImpl<E> implements Ziploq<E> {
         if (secondaryComparator.isPresent()) {
             @SuppressWarnings("unchecked") //downcasting type parameter for Comparator is safe
             Comparator<T> cmp = (Comparator<T>) secondaryComparator.get();
-            effectiveCmp = Optional.of(!comparator.isPresent() ? cmp :
-                cmp.thenComparing(comparator.get()));
+            effectiveCmp = Optional.of(comparator.isPresent() ? 
+                    cmp.thenComparing(comparator.get()) : cmp);
         } else {
             effectiveCmp = comparator;
         }
+        CapacityType type = strategy == BackPressureStrategy.UNBOUNDED ?
+                CapacityType.UNBOUNDED : CapacityType.BOUNDED;
         SpscSyncQueue<T> queue = SpscSyncQueueFactory.createUnordered(
-                businessDelay, systemDelay, softCapacity, strategy, effectiveCmp);
+                businessDelay, systemDelay, softCapacity, type, effectiveCmp);
         return register(queue, false, strategy, sourceName);
     }
     
     @Override
-    public <T extends E> SynchronizedConsumer<T> registerOrdered(int capacity,
+    public <T extends E> FlowConsumer<T> registerOrdered(int capacity,
             BackPressureStrategy strategy, String sourceName) {
-        SpscSyncQueue<T> queue = SpscSyncQueueFactory.createOrdered(capacity, strategy);
+        CapacityType type = strategy == BackPressureStrategy.UNBOUNDED ?
+                CapacityType.UNBOUNDED : CapacityType.BOUNDED;
+        SpscSyncQueue<T> queue = SpscSyncQueueFactory.createOrdered(capacity, type);
         return register(queue, true, strategy, sourceName);
     }
     
-    private <T extends E> SynchronizedConsumer<T> register(SpscSyncQueue<T> queue,
+    @Override
+    public Comparator<Entry<E>> getComparator() {
+        return effectiveComparator;
+    }
+    
+    private <T extends E> FlowConsumer<T> register(SpscSyncQueue<T> queue,
             boolean ordered, BackPressureStrategy strategy, String name) {
         ArgChecker.notNull(strategy, "backPressureStrategy");
-        SynchronizedConsumerImpl<T> q = new SynchronizedConsumerImpl<>(
+        FlowConsumerImpl<T> q = new FlowConsumerImpl<>(
                 queue, systemDelay, strategy, this::signalDirtySystemTs, name);
         LOG.info("Registering {} input source with name '{}' (ID: {})",
                 ordered ? "ordered" : "unordered", name, q.getId());
@@ -170,7 +174,7 @@ public class ZiploqImpl<E> implements Ziploq<E> {
                 //perform one more cycle
             } else if (ready != null) {
                 ready.getQueueRef().setInHeads(false);
-                debugMessageOrder(ready);
+                checkMessageOrder(ready);
                 return ready;
             } else {
                 return null;
@@ -178,20 +182,10 @@ public class ZiploqImpl<E> implements Ziploq<E> {
         }
     }
     
-    private void debugMessageOrder(EntryImpl<E> next) {
-        if(LOG.isDebugEnabled()) {
-            if(previous != null && effectiveComparator.compare(previous, next) > 0) {
-                LOG.debug("Entry dispatched out-of-sequence. The source of previous message has violated "
-                        + "the contract. Previous message: {}, New message: {}", previous, next);
-            }
-            previous = next;
-        }
-    }
-    
     private void updateQueues() {
-        if(dirtyQueues) {
+        if (dirtyQueues) {
             dirtyQueues = false; //must come first
-            SynchronizedConsumerImpl<? extends E> q;
+            FlowConsumerImpl<? extends E> q;
             while((q = updQueues.poll()) != null) {
                 queues.add(q);
             }
@@ -202,7 +196,7 @@ public class ZiploqImpl<E> implements Ziploq<E> {
     private void updateHeads() {
         int deregister = 0;
         for (int i = 0; i < queues.size(); i++) {
-            SynchronizedConsumerImpl<? extends E> queue = queues.get(i);
+            FlowConsumerImpl<? extends E> queue = queues.get(i);
             queue.setCheckpoint();
             if (!queue.isInHeads()) {
                 EntryImpl<E> polled = queue.poll();
@@ -235,6 +229,10 @@ public class ZiploqImpl<E> implements Ziploq<E> {
         if (heads.size() == queues.size()) {
             return heads.poll();
         }
+        return systemDelay > 0 ? pollSystemReadyMsg() : null;
+    }
+    
+    private EntryImpl<E> pollSystemReadyMsg() {
         EntryImpl<E> peeked = heads.peek();
         if (peeked != null) {
             if (dirtySystemTs) {
@@ -259,7 +257,7 @@ public class ZiploqImpl<E> implements Ziploq<E> {
     boolean updateLatestSystemTs() {
         long ts2Update = Long.MAX_VALUE;
         for (int i = 0; i < queues.size(); i++) {
-            SynchronizedConsumerImpl<? extends E> q = queues.get(i);
+            FlowConsumerImpl<? extends E> q = queues.get(i);
             if (q.getSystemTs() < ts2Update) {
                 ts2Update = q.getSystemTs();
             }
@@ -271,72 +269,39 @@ public class ZiploqImpl<E> implements Ziploq<E> {
         return true;
     }
     
-    private void debugInitWait() {
-        if (LOG.isDebugEnabled()) {
+    private void checkWait(int attempt) {
+        if (attempt == 1) {
             lastLoggedWait = System.currentTimeMillis();
-        }
-    }
-    
-    private void debugWait(int attempt) {
-        if (LOG.isDebugEnabled() && attempt % 1_000 == 0) {
+        } else if (attempt % 1_000 == 0) {
             long now = System.currentTimeMillis();
-            if (now - lastLoggedWait > LOG_INTERVAL) {
+            if (now - lastLoggedWait > WAIT_TIMEOUT) {
                 lastLoggedWait = now;
                 List<String> emptySources = queues.stream()
                         .filter(q -> !q.isInHeads())
-                        .map(SynchronizedConsumerImpl::getId)
+                        .map(FlowConsumerImpl::getId)
                         .sorted()
                         .collect(Collectors.toList());
-                LOG.debug("Not receiving messages for input source(s): {}", emptySources);
+                LOG.warn("Not receiving messages for input source(s): {}", emptySources);
             }
         }
+    }
+    
+    private void checkMessageOrder(EntryImpl<E> next) {
+        if (previous != null) {
+            boolean outOfSequence = COMPARATOR_COMPLIANT
+                    ? effectiveComparator.compare(previous, next) > 0 
+                    : previous.getBusinessTs() > next.getBusinessTs();
+            if (outOfSequence) {
+                LOG.warn("Entry dispatched out-of-sequence. The source of one of the following messages has "
+                        + "violated the contract. Previous message: {}, New message: {}", previous, next);
+            }
+        }
+        previous = next;
     }
     
     @SuppressWarnings("unchecked")
     private EntryImpl<E> getOutOfSyncMarker() {
         return OUT_OF_SYNC;
-    }
-    
-    private class Splitr implements Spliterator<Entry<E>> {
-
-        @Override
-        public boolean tryAdvance(Consumer<? super Entry<E>> action) {
-            Entry<E> entry;
-            try {
-                entry = take();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeInterruptedException("Thread interrupted.", e);
-            }
-            if(entry != Ziploq.getEndSignal()) {
-                action.accept(entry);
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public Spliterator<Entry<E>> trySplit() {
-            return null; //never split
-        }
-
-        @Override
-        public long estimateSize() {
-            return Long.MAX_VALUE;
-        }
-
-        @Override
-        public int characteristics() {
-            return Spliterator.ORDERED | Spliterator.SORTED | Spliterator.NONNULL;
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public Comparator<Entry<E>> getComparator() {
-            return (Comparator<Entry<E>>) heads.comparator();
-        }
-        
     }
     
 }

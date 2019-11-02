@@ -1,13 +1,13 @@
 package se.motility.ziploq.testimpl;
 
-import se.motility.ziploq.api.SynchronizedConsumer;
+import se.motility.ziploq.api.FlowConsumer;
 
 public class UnorderedProducer extends AbstractProducer {
 
     private final double messagesPerMilli;
     private final int maxDelay;
 
-    public UnorderedProducer(SynchronizedConsumer<Object> consumer, int messages,
+    public UnorderedProducer(FlowConsumer<Object> consumer, int messages,
             double messagesPerMilli, int maxDelay, Runnable waitStrategy) {
         super(consumer, messages, waitStrategy);
         this.messagesPerMilli = messagesPerMilli;

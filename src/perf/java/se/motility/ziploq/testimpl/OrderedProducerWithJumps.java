@@ -1,13 +1,13 @@
 package se.motility.ziploq.testimpl;
 
-import se.motility.ziploq.api.SynchronizedConsumer;
+import se.motility.ziploq.api.FlowConsumer;
 
 public class OrderedProducerWithJumps extends AbstractProducer {
     
     private final int jumpFreq;
     private final int jumpBound;
     
-    public OrderedProducerWithJumps(SynchronizedConsumer<Object> consumer,
+    public OrderedProducerWithJumps(FlowConsumer<Object> consumer,
             int messages, int jumpFreq, int jumpBound, Runnable waitStrategy) {
         super(consumer, messages, waitStrategy);
         this.jumpFreq = jumpFreq;

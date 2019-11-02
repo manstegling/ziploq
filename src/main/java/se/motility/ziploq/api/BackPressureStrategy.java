@@ -26,7 +26,7 @@ public enum BackPressureStrategy {
     
     /**
      * No back-pressure is exercised but signals
-     * when configured capacity has been reached.
+     * when desired max capacity has been reached.
      */
     UNBOUNDED;
     

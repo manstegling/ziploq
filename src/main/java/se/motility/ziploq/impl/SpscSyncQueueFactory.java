@@ -8,8 +8,6 @@ package se.motility.ziploq.impl;
 import java.util.Comparator;
 import java.util.Optional;
 
-import se.motility.ziploq.api.BackPressureStrategy;
-
 /**
  * Factory for creating instances of {@link SpscSyncQueue} 
  * to use in e.g. {@link ZiploqImpl} 
@@ -18,6 +16,16 @@ import se.motility.ziploq.api.BackPressureStrategy;
  *
  */
 public interface SpscSyncQueueFactory {
+    
+    /**
+     * Property for how queues handle capacity restrictions
+     */
+    public enum CapacityType {
+        /** Does not allow adding entries beyond specified capacity */
+        BOUNDED,
+        /** Allows adding entries beyond specified capacity but signals when this happens */
+        UNBOUNDED;
+    }
     
     /**
      * Factory method for creating a {@link SpscSyncQueue} for unordered input
@@ -29,18 +37,20 @@ public interface SpscSyncQueueFactory {
      * @param softCapacity of the queue; rounded up to the next power of 2 (if not already
      * power of 2). Messages having business timestamps in the last {@code businessDelay}
      * milliseconds won't count towards the total capacity.
+     * @param capacityType of the queue ({@link CapacityType#BOUNDED}/{@link CapacityType#UNBOUNDED})
      * @param comparator to use if multiple messages have the exact same business
      * timestamp. If {@link Optional#empty} is provided, no ordering is imposed on ties.
      * @param <E> message type
      * @return {@code SpscSyncQueue} to use with unordered input
      */
     public static <E> SpscSyncQueue<E> createUnordered(long businessDelay, long systemDelay,
-            int softCapacity, BackPressureStrategy strategy, Optional<Comparator<E>> comparator) {
+            int softCapacity, CapacityType capacityType, Optional<Comparator<E>> comparator) {
         ArgChecker.validateLong(businessDelay, 0, false, "businessDelay");
         ArgChecker.validateLong(businessDelay, systemDelay, true, "businessDelay");
         ArgChecker.validateLong(systemDelay, 0, false, "systemDelay");
         ArgChecker.validateLong(softCapacity, 1, false, "capacity");
-        return strategy == BackPressureStrategy.UNBOUNDED
+        ArgChecker.notNull(capacityType, "capacityType");
+        return capacityType == CapacityType.UNBOUNDED
                 ? UnboundedSyncQueue.unorderedSyncQueue(businessDelay, systemDelay, softCapacity, comparator)
                 : new UnorderedSyncQueue<>(businessDelay, systemDelay, softCapacity, comparator);
 
@@ -49,14 +59,14 @@ public interface SpscSyncQueueFactory {
     /**
      * Factory method for creating a {@link SpscSyncQueue} for ordered input
      * @param capacity of the queue; rounded up to the next power of 2 (if not already power of 2) 
-     * @param strategy 
+     * @param capacityType of the queue ({@link CapacityType#BOUNDED}/{@link CapacityType#UNBOUNDED})
      * @param <E> message type
      * @return {@code SpscSyncQueue} to use with ordered input
      */
-    public static <E> SpscSyncQueue<E> createOrdered(int capacity, BackPressureStrategy strategy) {
+    public static <E> SpscSyncQueue<E> createOrdered(int capacity, CapacityType capacityType) {
         ArgChecker.validateLong(capacity, 1, false, "capacity");
-        ArgChecker.notNull(strategy, "strategy");
-        return strategy == BackPressureStrategy.UNBOUNDED
+        ArgChecker.notNull(capacityType, "capacityType");
+        return capacityType == CapacityType.UNBOUNDED
                 ? UnboundedSyncQueue.orderedSyncQueue(capacity)
                 : new OrderedSyncQueue<>(capacity);
     }

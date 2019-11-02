@@ -22,8 +22,8 @@ import org.openjdk.jmh.annotations.Timeout;
 import org.openjdk.jmh.annotations.Warmup;
 
 import se.motility.ziploq.ZiploqTests.WaitMode;
-import se.motility.ziploq.api.SynchronizedConsumer;
-import se.motility.ziploq.api.Ziploq;
+import se.motility.ziploq.api.FlowConsumer;
+import se.motility.ziploq.api.ZipFlow;
 import se.motility.ziploq.api.ZiploqFactory;
 import se.motility.ziploq.testapi.Producer;
 import se.motility.ziploq.testapi.ProducerState;
@@ -71,7 +71,7 @@ public class UnorderedInputPerformance {
         @Param({"1000"})
         public int delay;
         
-        public Ziploq<Object> ziploq;
+        public ZipFlow<Object> ziploq;
         public List<Producer> producerList;
         
         @Setup(Level.Invocation)
@@ -81,14 +81,14 @@ public class UnorderedInputPerformance {
             this.producerList = new ArrayList<>();
             int messagesPerProducer = (totalMessages / producers) + 1;
             for (int i=0; i<producers; i++) {
-                SynchronizedConsumer<Object> consumer = ziploq.registerUnordered(
+                FlowConsumer<Object> consumer = ziploq.registerUnordered(
                         delay, capacity, mode.bps, TEST_SOURCE, Optional.empty());
                 producerList.add(new UnorderedProducer(consumer, messagesPerProducer, msgsPerMilli, delay, mode.ws));
             }
         }
 
         @Override
-        public Ziploq<Object> ziploq() {
+        public ZipFlow<Object> ziploq() {
             return ziploq;
         }
         @Override

@@ -9,8 +9,8 @@ import java.util.Optional;
 import org.junit.Test;
 
 import se.motility.ziploq.api.BackPressureStrategy;
-import se.motility.ziploq.api.SynchronizedConsumer;
-import se.motility.ziploq.api.Ziploq;
+import se.motility.ziploq.api.FlowConsumer;
+import se.motility.ziploq.api.ZipFlow;
 import se.motility.ziploq.api.ZiploqFactory;
 
 public abstract class AbstractOrderedQueueTest {
@@ -19,8 +19,8 @@ public abstract class AbstractOrderedQueueTest {
     
     @Test
     public void produceConsumeProduceConsume() {
-        Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
+        FlowConsumer<MsgObject> consumer = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
         
         assertNull(ziploq.poll());
         
@@ -46,9 +46,9 @@ public abstract class AbstractOrderedQueueTest {
     @SuppressWarnings("unused")
     @Test
     public void syncTwoConsumers() {
-        Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
-        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
+        FlowConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
+        FlowConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
         
         //E1: (TS1+1, 0, c1)
         TestEntry e1 = consume(consumer1, OBJECT_1, TS_1 + 1, ZERO); //#2
@@ -64,10 +64,10 @@ public abstract class AbstractOrderedQueueTest {
     @SuppressWarnings("unused")
     @Test
     public void syncThreeConsumers() {
-        Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
-        SynchronizedConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
-        SynchronizedConsumer<MsgObject> consumer3 = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
+        FlowConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
+        FlowConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
+        FlowConsumer<MsgObject> consumer3 = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
         
         //E1: (TS1+10, 0, c1)
         TestEntry e1 = consume(consumer1, OBJECT_1, TS_1 + 10, ZERO); //#5
@@ -97,8 +97,8 @@ public abstract class AbstractOrderedQueueTest {
     
     @Test
     public void produceFullCapacityAndConsume() {
-        Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
+        FlowConsumer<MsgObject> consumer = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
         //E1: (TS1, 0)
         TestEntry e1 = consume(consumer, OBJECT_1, TS_1,   ZERO);
         //E2: (TS1, 0)
@@ -120,8 +120,8 @@ public abstract class AbstractOrderedQueueTest {
     
     @Test(expected = IllegalStateException.class)
     public void onEventAfterComplete() {
-        Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
+        FlowConsumer<MsgObject> consumer = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
         consumer.complete();
         consume(consumer, OBJECT_1, ZERO, ZERO);
         fail();
@@ -129,8 +129,8 @@ public abstract class AbstractOrderedQueueTest {
     
     @Test(expected = IllegalStateException.class)
     public void updateSystemTimeAfterComplete() {
-        Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
+        FlowConsumer<MsgObject> consumer = ziploq.registerOrdered(5, getStrategy(), TEST_SOURCE);
         consumer.complete();
         consumer.updateSystemTime(TS_1);
         fail();

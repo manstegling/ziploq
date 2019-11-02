@@ -11,8 +11,8 @@ import org.junit.Test;
 import se.motility.ziploq.SyncTestUtils.MsgObject;
 import se.motility.ziploq.SyncTestUtils.TestEntry;
 import se.motility.ziploq.api.BackPressureStrategy;
-import se.motility.ziploq.api.SynchronizedConsumer;
-import se.motility.ziploq.api.Ziploq;
+import se.motility.ziploq.api.FlowConsumer;
+import se.motility.ziploq.api.ZipFlow;
 import se.motility.ziploq.api.ZiploqFactory;
 
 public class DroppingUnorderedQueueTest extends AbstractUnorderedQueueTest {
@@ -26,8 +26,8 @@ public class DroppingUnorderedQueueTest extends AbstractUnorderedQueueTest {
     public void acceptedMessages() {
         long delay = 5L;
         
-        Ziploq<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
-        SynchronizedConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 2, getStrategy(), TEST_SOURCE, Optional.of(COMPARATOR));
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.of(COMPARATOR));
+        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 2, getStrategy(), TEST_SOURCE, Optional.of(COMPARATOR));
         
         assertNull(ziploq.poll());
         
