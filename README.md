@@ -1,5 +1,6 @@
 # Ziploq
 
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/se.motility/ziploq/badge.svg)](https://maven-badges.herokuapp.com/maven-central/se.motility/ziploq)
 
 An ingeniously simple device for merging and sequencing data from any number of data sources. It doesn't matter whether the input data is ordered or not, the output will always be ordered!
 
@@ -49,13 +50,13 @@ It is also possible to retrieve the ordered output by using old-school methods `
 
 ### ZipFlow keeps data flowing (even when there's no input)
 
-If you're developing a real-time application that has to keep pushing messages even when some input data sources are not producing any--`ZipFlow` is the way to go. To create an instance, do exactly as before but also provide a `systemDelay` parameter:
+If you're developing a real-time application that has to keep pushing messages even when some input data sources are not producing any -- `ZipFlow` is the way to go. To create an instance, do exactly as before but add a `systemDelay` parameter:
 
 ```java
 ZipFlow<MyMsg> zipflow = ZiploqFactory.create(systemDelay, msgComparator);
 ```
 
-When registering input data sources with `ZipFlow` you'll get a turbo-charged flavor of the `SynchronizedConsumer` called a `FlowConsumer`. These consumers use a vector clock consisting of both business time and system time, where the latter is used for heartbeating functionality. This allows messages to be dispatched through the synchronizer even at times when some input sources are silent, as long as they progress their system time.
+When registering input data sources with `ZipFlow` you'll get the turbo-charged flavor of `SynchronizedConsumer` called `FlowConsumer`. These consumers use a vector clock consisting of both business time and system time, where the latter is used for heartbeating functionality. This allows messages to be dispatched through the synchronizer even at times when some input sources are silent, as long as they progress their system time.
 
 To publish updates for the system clock at times when no new messages are available, simply call `consumer.updateSystemTime(systemTs)`.
 
@@ -159,18 +160,18 @@ In the simplest case, consider `Producer` and `MyMsg` classes as per below
     }
 ```
 
-Running this program will output messages from 0 to 1000. The `tiebreaker` comparator guarantees that "Adaptor-A" messages always come before "Adaptor-B" messages when timestamps are equal.
+Running this program will output messages from 0 to 1000. The `tiebreaker` comparator guarantees that "Producer-A" messages always come before "Producer-B" messages when timestamps are equal.
 
 ```
-Adaptor-A-0
-Adaptor-B-0
-Adaptor-A-1
-Adaptor-B-1
+Producer-A-0
+Producer-B-0
+Producer-A-1
+Producer-B-1
 ...
-Adaptor-A-999
-Adaptor-B-999
-Adaptor-A-1000
-Adaptor-B-1000
+Producer-A-999
+Producer-B-999
+Producer-A-1000
+Producer-B-1000
 ```
 
 
