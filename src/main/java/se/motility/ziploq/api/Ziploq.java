@@ -6,7 +6,9 @@
 package se.motility.ziploq.api;
 
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.Optional;
+import java.util.function.ToLongFunction;
 import java.util.stream.Stream;
 
 import se.motility.ziploq.impl.Splitr;
@@ -98,6 +100,16 @@ public interface Ziploq<E> {
      * @return a synchronized message wrapped in an {@link Entry}
      */
     Entry<E> poll();
+    
+    /**
+     * Registers the provided <i>ordered</i> in-memory dataset to be synchronized.
+     * @param dataset to add (the associated {@link Iterator} must return the data points in order)
+     * @param toTimestamp function extracting business timestamp from message
+     * @param sourceName to be associated with this dataset
+     * @param <T> message type; must be a subclass of the synchronized type
+     */
+    public <T extends E> void registerDataset(
+            Iterable<T> dataset, ToLongFunction<T> toTimestamp, String sourceName);
     
     /**
      * Registers a new unordered input source to be synchronized.

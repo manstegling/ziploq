@@ -50,6 +50,30 @@ public class SyncTestUtils {
         return new TestEntry(obj, businessTs, systemTs, accepted);
     }
     
+    public static void addToQueue(FlowConsumer<MsgObject> consumer, int messages) {
+        long time = 100L;
+        for (int i = 0; i < messages; i++) {
+            if (i % 100 == 0) {
+                time += 100;
+            }
+            time++;
+            consume(consumer, MsgObject.OBJECT_1, time, ZERO);
+        }
+        consumer.complete();
+    }
+    
+    public static void addToQueueUnordered(FlowConsumer<MsgObject> consumer, int messages) {
+        long time = 100L;
+        for (int i = 0; i < messages; i++) {
+            if (i % 100 == 0) {
+                time += 100;
+            }
+            time++;
+            consume(consumer, MsgObject.OBJECT_1, time + (i % 2 == 0 ? 2 : -2), ZERO);
+        }
+        consumer.complete();
+    }
+    
     public static class TestEntry implements Entry<MsgObject> {
         private static final long serialVersionUID = 1L;
         
@@ -102,6 +126,14 @@ public class SyncTestUtils {
             this.future = executorService.submit(wrap(runnable));
         }
         
+        /** 
+         * Joins the thread after the runnable has completed. If it does not complete within
+         * 2 seconds or has completed exceptionally, an {@code AssertionError} is thrown.
+         * */
+        public void join() {
+            failOnException(() -> complete(2_000L));
+        }
+        
         private Runnable wrap(RunnableWithException runnable) {
             return () -> {
                 try {
@@ -116,7 +148,7 @@ public class SyncTestUtils {
             return !future.isDone();
         }
 
-        public void test(long timeoutMillis) throws InterruptedException{
+        private void complete(long timeoutMillis) throws InterruptedException{
             executorService.shutdown();
             executorService.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS);
             while(!future.isDone()) {
@@ -125,6 +157,34 @@ public class SyncTestUtils {
             if (ex != null) {
                 throw new AssertionError("Exception in test thread: " + ex.getMessage(), ex);
             }
+        }
+    }
+    
+    @FunctionalInterface
+    public static interface Take<T> {
+        T get() throws InterruptedException;
+    }
+    
+    public static class SequenceChecker {
+        private long ts = 0L;
+        private int total = 0;
+        void verify(Take<Entry<?>> take) {
+            try {
+                verify(take.get());
+            } catch (InterruptedException e) {
+                fail("Interrupted");
+            }
+        }
+        void verify(Entry<?> m) {
+            long updTs = m.getBusinessTs();
+            if(updTs < ts) {
+                fail("Messages out-of-sequence");
+            }
+            ts = updTs;
+            total++;
+        }
+        int getTotal() {
+            return total;
         }
     }
     

@@ -33,7 +33,7 @@ public final class AdvancedZiploq {
      * of microseconds per entry.
      * <p>
      * The worker thread will get the same thread priority as the thread calling this method.
-     * @param sequencer to stream sequenced entries from
+     * @param ziploq to stream sequenced entries from
      * @param bufferSize of the worker's buffer
      * @param <E> message type
      * @return {@code Stream} consisting of synchronized messages

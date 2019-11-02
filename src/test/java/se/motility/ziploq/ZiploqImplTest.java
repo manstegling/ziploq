@@ -3,67 +3,32 @@ package se.motility.ziploq;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
-import static se.motility.ziploq.SyncTestUtils.COMPARATOR;
-import static se.motility.ziploq.SyncTestUtils.TS_1;
-import static se.motility.ziploq.SyncTestUtils.ZERO;
-import static se.motility.ziploq.SyncTestUtils.consume;
-import static se.motility.ziploq.SyncTestUtils.failOnException;
-import static se.motility.ziploq.SyncTestUtils.verify;
-import static se.motility.ziploq.SyncTestUtils.MsgObject.OBJECT_1;
-import static se.motility.ziploq.SyncTestUtils.MsgObject.OBJECT_2;
-import static se.motility.ziploq.SyncTestUtils.MsgObject.OBJECT_3;
-import static se.motility.ziploq.SyncTestUtils.MsgObject.OBJECT_4;
-import static se.motility.ziploq.SyncTestUtils.MsgObject.OBJECT_5;
-import static se.motility.ziploq.SyncTestUtils.MsgObject.OBJECT_6;
+import static se.motility.ziploq.SyncTestUtils.*;
+import static se.motility.ziploq.SyncTestUtils.MsgObject.*;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.junit.Test;
-
 import se.motility.ziploq.SyncTestUtils.AsyncTestThread;
 import se.motility.ziploq.SyncTestUtils.MsgObject;
+import se.motility.ziploq.SyncTestUtils.SequenceChecker;
 import se.motility.ziploq.SyncTestUtils.TestEntry;
-import se.motility.ziploq.api.AdvancedZiploq;
 import se.motility.ziploq.api.BackPressureStrategy;
-import se.motility.ziploq.api.Entry;
 import se.motility.ziploq.api.FlowConsumer;
+import se.motility.ziploq.api.SynchronizedConsumer;
 import se.motility.ziploq.api.ZipFlow;
+import se.motility.ziploq.api.Ziploq;
 import se.motility.ziploq.api.ZiploqFactory;
 
 public class ZiploqImplTest {
 
     private static final String TEST_SOURCE = "SOURCE";
-    
-    private static class SequenceChecker {
-        private long ts = 0L;
-        private int total = 0;
-        void verify(Take<Entry<MsgObject>> take) {
-            try {
-                verify(take.get());
-            } catch (InterruptedException e) {
-                fail("Interrupted");
-            }
-        }
-        void verify(Entry<MsgObject> m) {
-            long updTs = m.getBusinessTs();
-            if(updTs < ts) {
-                fail("Messages out-of-sequence");
-            }
-            ts = updTs;
-            total++;
-        }
-        int getTotal() {
-            return total;
-        }
-    }
-    
-    @FunctionalInterface
-    private static interface Take<T> {
-        T get() throws InterruptedException;
-    }
     
     private static void takeAndVerify(ZipFlow<MsgObject> ziploq,
             List<TestEntry> expected) throws InterruptedException {
@@ -98,32 +63,26 @@ public class ZiploqImplTest {
         }
     }
     
-    private void joinTestThread(AsyncTestThread t1) {
-        failOnException(() -> t1.test(2_000L));
+    private static Collection<Msg> createOrdered(int i) {
+        return IntStream
+                .range(0, i)
+                .mapToObj(Msg::new)
+                .collect(Collectors.toList());
     }
     
-    private void addToQueue(FlowConsumer<MsgObject> consumer, int messages) {
-        long time = 100L;
-        for (int i = 0; i < messages; i++) {
-            if (i % 100 == 0) {
-                time += 100;
-            }
-            time++;
-            consume(consumer, OBJECT_1, time, ZERO);
-        }
+    public static void addData(SynchronizedConsumer<Msg> consumer, Collection<Msg> dataset) {
+        dataset.forEach(msg -> consumer.onEvent(msg, msg.ts));
         consumer.complete();
     }
     
-    private void addToQueueUnordered(FlowConsumer<MsgObject> consumer, int messages) {
-        long time = 100L;
-        for (int i = 0; i < messages; i++) {
-            if (i % 100 == 0) {
-                time += 100;
-            }
-            time++;
-            consume(consumer, OBJECT_1, time + (i % 2 == 0 ? 2 : -2), ZERO);
+    private static class Msg {
+        private final long ts;
+        public Msg(long ts) {
+            this.ts = ts;
         }
-        consumer.complete();
+        public long getTimestamp() {
+            return ts;
+        }
     }
 
     @Test(timeout=10_000)
@@ -164,7 +123,7 @@ public class ZiploqImplTest {
         //E3: (TS1+delay, 0) (E1 is released)
         consume(consumer, OBJECT_1, TS_1 + delay, ZERO);
 
-        joinTestThread(t);
+        t.join();
     }
     
 
@@ -196,7 +155,7 @@ public class ZiploqImplTest {
         //E4: Release all previous consumer2 messages (blocks until message is taken from ziploq)
         consume(consumer2, OBJECT_1, TS_1 + 2 + delay, ZERO); //#4
 
-        joinTestThread(t);
+        t.join();
     }
     
     /**
@@ -223,7 +182,7 @@ public class ZiploqImplTest {
             checker.verify(ziploq::take);
         }
         
-        joinTestThread(t);
+        t.join();
     }
     
     /**
@@ -264,7 +223,7 @@ public class ZiploqImplTest {
         verifyBlocking(t);
         
         consume(consumer2, OBJECT_2, TS_1, ZERO);
-        joinTestThread(t);
+        t.join();
     }
     
     /**
@@ -289,7 +248,7 @@ public class ZiploqImplTest {
             checker.verify(ziploq::take);
         }
         
-        joinTestThread(t);
+        t.join();
     }
     
     /**
@@ -362,7 +321,7 @@ public class ZiploqImplTest {
         //Signal that we have recovered after being silent > system delays
         consumer2.updateSystemTime(ZERO + 3*delay);
 
-        joinTestThread(t);
+        t.join();
     }
     
     
@@ -391,7 +350,7 @@ public class ZiploqImplTest {
             checker.verify(ziploq::take);
         }
         
-        joinTestThread(t);
+        t.join();
     }
     
     @Test(timeout=10_000)
@@ -411,8 +370,8 @@ public class ZiploqImplTest {
             checker.verify(ziploq::take);
         }
         
-        joinTestThread(t1);
-        joinTestThread(t2);
+        t1.join();
+        t2.join();
     }
     
     @Test(timeout=10_000)
@@ -436,9 +395,9 @@ public class ZiploqImplTest {
             checker.verify(ziploq::take);
         }
         
-        joinTestThread(t1);
-        joinTestThread(t2);
-        joinTestThread(t3);
+        t1.join();
+        t2.join();
+        t3.join();
     }
 
     @Test(timeout=10_000)
@@ -462,9 +421,9 @@ public class ZiploqImplTest {
         
         assertEquals(3*messages, checker.getTotal());
         
-        joinTestThread(t1);
-        joinTestThread(t2);
-        joinTestThread(t3);
+        t1.join();
+        t2.join();
+        t3.join();
     }
     
     @Test
@@ -640,30 +599,46 @@ public class ZiploqImplTest {
     }
     
     @Test(timeout=10_000)
-    public void advancedStreamFromThree() {
-        long delay = 1000L;
-        int messages = 1000;
+    public void streamFromDatasets() {
         
-        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.empty());
-        FlowConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
-        FlowConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
-        FlowConsumer<MsgObject> consumer3 = ziploq.registerUnordered(
-                10, 5, BackPressureStrategy.BLOCK, TEST_SOURCE, Optional.empty());
-
+        Collection<Msg> dataset1 = createOrdered(5000);
+        Collection<Msg> dataset2 = createOrdered(6000);
         
-        AsyncTestThread t1 = new AsyncTestThread(() -> addToQueue(consumer1, messages));
-        AsyncTestThread t2 = new AsyncTestThread(() -> addToQueue(consumer2, messages));
-        AsyncTestThread t3 = new AsyncTestThread(() -> addToQueueUnordered(consumer3, messages));
+        Ziploq<Msg> ziploq = ZiploqFactory.create(Optional.empty());
+        ziploq.registerDataset(dataset1, Msg::getTimestamp, "dataset1");
+        ziploq.registerDataset(dataset2, Msg::getTimestamp, "dataset2");
         
         SequenceChecker checker = new SequenceChecker();
-        AdvancedZiploq.streamWithWorker(ziploq, 5)
-                      .forEach(checker::verify);
+        ziploq.stream()
+              .forEach(checker::verify);
         
-        assertEquals(3*messages, checker.getTotal());
+        assertEquals(dataset1.size() + dataset2.size(), checker.getTotal());
+    }
+    
+    @Test(timeout=10_000)
+    public void streamMixed() {
         
-        joinTestThread(t1);
-        joinTestThread(t2);
-        joinTestThread(t3);
+        Collection<Msg> dataset1  = createOrdered(5000);
+        Collection<Msg> dataset2  = createOrdered(6000);
+        Collection<Msg> asyncData = createOrdered(10000);
+        
+        Ziploq<Msg> ziploq = ZiploqFactory.create(Optional.empty());
+        
+        //Register complete, in-memory datasets
+        ziploq.registerDataset(dataset1, Msg::getTimestamp, "dataset1");
+        ziploq.registerDataset(dataset2, Msg::getTimestamp, "dataset2");
+        
+        //Create a data source producing data asynchronously
+        SynchronizedConsumer<Msg> consumer = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        AsyncTestThread t = new AsyncTestThread(() -> addData(consumer, asyncData));
+        
+        SequenceChecker checker = new SequenceChecker();
+        ziploq.stream()
+              .forEach(checker::verify);
+        
+        assertEquals(dataset1.size() + dataset2.size() + asyncData.size(), checker.getTotal());
+        
+        t.join();
     }
     
 }
