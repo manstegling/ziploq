@@ -26,6 +26,7 @@ import org.junit.Test;
 import se.motility.ziploq.SyncTestUtils.AsyncTestThread;
 import se.motility.ziploq.SyncTestUtils.MsgObject;
 import se.motility.ziploq.SyncTestUtils.TestEntry;
+import se.motility.ziploq.api.AdvancedZiploq;
 import se.motility.ziploq.api.BackPressureStrategy;
 import se.motility.ziploq.api.Entry;
 import se.motility.ziploq.api.FlowConsumer;
@@ -636,6 +637,33 @@ public class ZiploqImplTest {
         verify(e7, ziploq.poll());
         verify(e8, ziploq.poll());
         assertNull(ziploq.poll());
+    }
+    
+    @Test(timeout=10_000)
+    public void advancedStreamFromThree() {
+        long delay = 1000L;
+        int messages = 1000;
+        
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.empty());
+        FlowConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        FlowConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        FlowConsumer<MsgObject> consumer3 = ziploq.registerUnordered(
+                10, 5, BackPressureStrategy.BLOCK, TEST_SOURCE, Optional.empty());
+
+        
+        AsyncTestThread t1 = new AsyncTestThread(() -> addToQueue(consumer1, messages));
+        AsyncTestThread t2 = new AsyncTestThread(() -> addToQueue(consumer2, messages));
+        AsyncTestThread t3 = new AsyncTestThread(() -> addToQueueUnordered(consumer3, messages));
+        
+        SequenceChecker checker = new SequenceChecker();
+        AdvancedZiploq.streamWithWorker(ziploq, 5)
+                      .forEach(checker::verify);
+        
+        assertEquals(3*messages, checker.getTotal());
+        
+        joinTestThread(t1);
+        joinTestThread(t2);
+        joinTestThread(t3);
     }
     
 }
