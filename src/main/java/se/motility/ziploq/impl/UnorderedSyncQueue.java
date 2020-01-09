@@ -10,8 +10,7 @@ import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
-import org.jctools.queues.QueueFactory;
-import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.SpscLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +50,7 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
                 .map(c -> this.comparator.thenComparing(Entry::getMessage, c))
                 .orElse(this.comparator);
         this.staging = new PriorityQueue<>(cmp);
-        this.ready = QueueFactory.newQueue(ConcurrentQueueSpec.createBoundedSpsc(0)); //unbounded
+        this.ready = new SpscLinkedQueue<>(); //unbounded
         this.businessDelay = businessDelay;
         this.systemDelay = systemDelay;
         this.softCapacity = softCapacity;

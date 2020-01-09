@@ -8,8 +8,8 @@ package se.motility.ziploq.impl;
 import java.util.Queue;
 
 import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.QueueFactory;
-import org.jctools.queues.spec.ConcurrentQueueSpec;
+import org.jctools.queues.SpscArrayQueue;
+import org.jctools.queues.SpscLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +35,7 @@ public class OrderedSyncQueue<E> implements SpscSyncQueue<E> {
     private long lastTs = 0;
     
     OrderedSyncQueue(int capacity) {
-        this.ready = QueueFactory.newQueue(ConcurrentQueueSpec.createBoundedSpsc(capacity));
+        this.ready = capacity > 0 ? new SpscArrayQueue<>(capacity) : new SpscLinkedQueue<>();
         this.capacity = ready instanceof MessagePassingQueue ? //retrieve actual capacity (power of 2)
             ((MessagePassingQueue<?>) ready).capacity() : capacity;
     }
