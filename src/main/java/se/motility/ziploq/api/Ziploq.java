@@ -108,8 +108,13 @@ public interface Ziploq<E> {
      * @param sourceName to be associated with this dataset
      * @param <T> message type; must be a subclass of the synchronized type
      */
-    public <T extends E> void registerDataset(
-            Iterable<T> dataset, ToLongFunction<T> toTimestamp, String sourceName);
+    default <T extends E> void registerDataset(Iterable<T> dataset,
+            ToLongFunction<T> toTimestamp, String sourceName) {
+        SynchronizedConsumer<T> consumer = registerOrdered(
+                Integer.MAX_VALUE, BackPressureStrategy.UNBOUNDED, sourceName);
+        dataset.forEach(d -> consumer.onEvent(d, toTimestamp.applyAsLong(d)));
+        consumer.complete();
+    }
     
     /**
      * Registers a new unordered input source to be synchronized.

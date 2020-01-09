@@ -47,7 +47,6 @@ public interface SpscSyncQueueFactory {
             int softCapacity, CapacityType capacityType, Optional<Comparator<E>> comparator) {
         ArgChecker.validateLong(businessDelay, 0, false, "businessDelay");
         ArgChecker.validateLong(businessDelay, systemDelay, true, "businessDelay");
-        ArgChecker.validateLong(systemDelay, 0, false, "systemDelay");
         ArgChecker.validateLong(softCapacity, 1, false, "capacity");
         ArgChecker.notNull(capacityType, "capacityType");
         return capacityType == CapacityType.UNBOUNDED

@@ -92,6 +92,12 @@ public class ZiploqImplTest {
         //Add similar test for take() 
     }
     
+    @Test(expected = IllegalArgumentException.class)
+    public void testIncorrectParameter() {
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(0L, Optional.empty());
+        assertNull(ziploq.poll());
+    }
+    
     @Test(timeout=1_000)
     public void testBlockOnTake() {
 //        Ziploq<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());

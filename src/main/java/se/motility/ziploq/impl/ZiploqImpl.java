@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -21,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import se.motility.ziploq.api.BackPressureStrategy;
 import se.motility.ziploq.api.Entry;
 import se.motility.ziploq.api.FlowConsumer;
-import se.motility.ziploq.api.SynchronizedConsumer;
 import se.motility.ziploq.api.ZipFlow;
 import se.motility.ziploq.api.Ziploq;
 import se.motility.ziploq.impl.SpscSyncQueueFactory.CapacityType;
@@ -143,15 +141,6 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
                 CapacityType.UNBOUNDED : CapacityType.BOUNDED;
         SpscSyncQueue<T> queue = SpscSyncQueueFactory.createOrdered(capacity, type);
         return register(queue, true, strategy, sourceName);
-    }
-    
-    @Override
-    public <T extends E> void registerDataset(Iterable<T> dataset,
-            ToLongFunction<T> toTimestamp, String sourceName) {
-        SynchronizedConsumer<T> consumer = registerOrdered(
-                Integer.MAX_VALUE, BackPressureStrategy.UNBOUNDED, sourceName);
-        dataset.forEach(d -> consumer.onEvent(d, toTimestamp.applyAsLong(d)));
-        consumer.complete();
     }
     
     @Override

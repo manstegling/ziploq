@@ -31,7 +31,7 @@ import se.motility.ziploq.api.RuntimeInterruptedException;
  */
 public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
     
-    private static final long NANO_WAIT = 1_000_000L; //1ms: throughput ~ capacity x 1000 events/s
+    private static final long ONE_MILLISECOND = 1_000_000L; //throughput ~ capacity x 1000 events/s
     private final Comparator<Entry<E>> comparator = Comparator.comparingLong(Entry::getBusinessTs);
     
     private static final Logger LOG = LoggerFactory.getLogger(UnorderedSyncQueue.class);
@@ -80,7 +80,7 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
             if(Thread.currentThread().isInterrupted()) {
                 throw new RuntimeInterruptedException("Thread interrupted");
             }
-            WaitStrategy.specificWait(NANO_WAIT);
+            WaitStrategy.specificWait(ONE_MILLISECOND);
         }
         return true;
     }
@@ -126,12 +126,13 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
     }
     
     private boolean enqueue(Entry<E> entry) {
-        updateVectorClock(entry);
-        promoteMessages();
         if (lSize >= softCapacity) {
             lSize = readySize(); //update guess to actual size ("costly")
         }
-        return lSize < softCapacity && staging.offer(entry);
+        boolean hasCapacity = lSize < softCapacity; //check before promotion to agree with remainingCapacity()
+        updateVectorClock(entry);
+        promoteMessages();
+        return hasCapacity && staging.offer(entry);
     }
     
     private void updateVectorClock(Entry<E> entry) {

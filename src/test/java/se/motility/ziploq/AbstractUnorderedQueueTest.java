@@ -166,9 +166,4 @@ public abstract class AbstractUnorderedQueueTest {
         fail();
     }
     
-    @Test
-    public void capacity() {
-        
-    }
-    
 }

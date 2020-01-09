@@ -10,11 +10,13 @@ An ingeniously simple device for merging and sequencing data from any number of 
 
 For your convenience, Ziploq also provides strategies for handling backpressure on both Producer and Consumer side.
 
-#### Example use case (illustration)
+##### Example use case
 
 ![Ziploq; merging input sources](https://raw.githubusercontent.com/manstegling/ziploq/master/images/ziploq.png)
 
 ### Using Ziploq
+
+_For a complete code example, please refer to [Code Example](#code-example)._
 
 Create a new `Ziploq` instance using the factory
 
@@ -97,7 +99,7 @@ Ziploq aims to bridge that gap by providing an intuitive API for merging data fr
 
 This library uses SLF4J for logging, so please make sure you've got your logger configured to handle this. Log entries will be written if any input sources break the ordering contract resulting in out-of-sequence message flows.
 
-By default, only a non-decreasing business timestamp sequence is enforced. If you'd want the framework to also check that the input data is compliant with the configured _Comparator_ (if any) set the system property `ziploq.log.comparator_compliant=true`.
+By default, only a non-decreasing business timestamp sequence is enforced. If you'd want the framework to also check that the _input data sequence_ is compliant with the configured _Comparator_ (if any) set the system property `ziploq.log.comparator_compliant=true`.
 
 The framework also warns when the blocking action to wait for output has not returned within a certain time-frame. If this happens, information about the sources that are silent--causing the block--will be provided. The default timeout is 120000 milliseconds (2 minutes) and can be adjusted with the system property `ziploq.log.wait_timeout`.
 
@@ -112,7 +114,7 @@ _Note:_ Illustrations describing how the vector clock and sorting mechanism work
 
 ### Code example
 
-Creating a `Ziploq` instance, registering one dataset and two ordered input data producers and then operating on the merged, ordered output is done in the following way
+Creating a `Ziploq` instance, registering one dataset and two ordered input data producers and then operating on the merged, ordered output is done in the following way.
 
 ```java
 public static void main(String[] args) {
@@ -126,9 +128,9 @@ public static void main(String[] args) {
     
     //Register input data producers
     Producer producerA = new Producer("Producer-A",
-        ziploq.registerOrdered(100, BackPressureStrategy.BLOCK, "Source-A"));
+        ziploq.registerOrdered(128, BackPressureStrategy.BLOCK, "Source-A"));
     Producer producerB = new Producer("Producer-B",
-        ziploq.registerOrdered(100, BackPressureStrategy.BLOCK, "Source-B"));
+        ziploq.registerOrdered(128, BackPressureStrategy.BLOCK, "Source-B"));
     
     //Start data producers
     producerA.start();
@@ -152,36 +154,39 @@ static List<MyMsg> loadDataset(String id) {
 In the simplest case, consider `Producer` and `MyMsg` classes as per below
 
 ```java
-    static class Producer extends Thread {
-        private final SynchronizedConsumer<MyMsg> consumer;
-        private final String id;
-        public Producer(String id, SynchronizedConsumer<MyMsg> consumer) {
-            this.id = id;
-            this.consumer = consumer;
-        }
-        @Override
-        public void run() {
-            IntStream.range(0, 1001)
-                     .mapToObj(i -> new MyMsg(id+"-"+i, i))
-                     .forEach(msg -> consumer.onEvent(msg, msg.getTimestamp()));
-            consumer.complete();
-        }
+class Producer extends Thread {
+    private final SynchronizedConsumer<MyMsg> consumer;
+    private final String id;
+    public Producer(String id, SynchronizedConsumer<MyMsg> consumer) {
+        this.id = id;
+        this.consumer = consumer;
     }
-    
-    static class MyMsg {
-        private final String message;
-        private final long timestamp;
-        public MyMsg(String message, long timestamp) {
-            this.message = message;
-            this.timestamp = timestamp;
-        }
-        public String getMessage() {
-            return message;
-        }
-        public long getTimestamp() {
-            return timestamp;
-        }
+    @Override
+    public void run() {
+        IntStream
+            .range(0, 1001)
+            .mapToObj(i -> new MyMsg(id+"-"+i, i))
+            .forEach(msg -> consumer.onEvent(msg, msg.getTimestamp()));
+        consumer.complete();
     }
+}
+```
+
+```java  
+class MyMsg {
+    private final String message;
+    private final long timestamp;
+    public MyMsg(String message, long timestamp) {
+        this.message = message;
+        this.timestamp = timestamp;
+    }
+    public String getMessage() {
+        return message;
+    }
+    public long getTimestamp() {
+        return timestamp;
+    }
+}
 ```
 
 Running this program will output messages from 0 to 1000. The `tiebreaker` comparator guarantees that "Dataset" messages come first, then "Producer-A" messages and last "Producer-B" messages when timestamps are equal.
@@ -201,6 +206,10 @@ Dataset-1000
 Producer-A-1000
 Producer-B-1000
 ```
+
+Remember that we had registered both input source with capacity set to '128' and `BackPressureStrategy.BLOCK`? This means none of the consumers will have held more than 128 messages in memory, at the same time, when the input data was synchronized. Instead, if a consumer's internal buffer were to reach 128 messages its `onEvent(...)` method would block until the downstream catches up, ensuring that we never go out-of-memory.
+
+This might not be a concern when only passing a few thousand Strings through the pipe, but just imagine scenarios in which we're processing millions or even billions of rich messages!
 
 
 ### Leave feedback
