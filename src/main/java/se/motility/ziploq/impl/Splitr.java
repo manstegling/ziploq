@@ -38,6 +38,7 @@ public class Splitr<E> implements Spliterator<Entry<E>> {
      * @param endSignal final entry to be produced; terminates the stream
      * @param comparator defining the message sequence coming from the blocking producer
      * @param <E> message type
+     * @return {@code Stream} of synchronized messages delivered in a blocking fashion
      * @throws RuntimeInterruptedException if the thread is interrupted while taking
      * messages from the blocking producer
      */

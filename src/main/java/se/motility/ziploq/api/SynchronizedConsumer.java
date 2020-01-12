@@ -46,7 +46,7 @@ public interface SynchronizedConsumer<E> {
      * no more events will be added. 
      * <p>
      * After this method has been called, no further calls to {@link #onEvent} or
-     * {@link #updateSystemTime} are allowed.
+     * other signals for this consumer are allowed.
      */
     void complete();
     

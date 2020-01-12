@@ -3,7 +3,7 @@
   
   <groupId>se.motility</groupId>
   <artifactId>ziploq</artifactId>
-  <version>1.1-SNAPSHOT</version>
+  <version>2.0</version>
   <name>Ziploq</name>
   <description>
     A high-throughput device for merging and sequencing messages from any number of input sources
@@ -90,6 +90,25 @@
                 </goals>
               </execution>
             </executions>
+            <configuration>
+              <tags>
+                <tag>
+                  <name>apiNote</name>
+                  <placement>a</placement>
+                  <head>API Note:</head>
+                </tag>
+                <tag>
+                  <name>implSpec</name>
+                  <placement>a</placement>
+                  <head>Implementation Specification:</head>
+                </tag>
+                <tag>
+                  <name>implNote</name>
+                  <placement>a</placement>
+                  <head>Implementation Note:</head>
+                </tag>
+              </tags>
+            </configuration>
           </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>

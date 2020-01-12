@@ -11,7 +11,7 @@ import se.motility.ziploq.api.Entry;
  * Simple implementation of {@link Entry}.
  * <p>
  * Includes a "hidden" reference to the Ziploq consumer to which the messages was submitted,
- * which is required by {@link ZipFlowImpl} for performance reasons.
+ * which is required by {@link ZiploqImpl} for performance reasons.
  * 
  * @author M Tegling
  *
