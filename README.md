@@ -2,17 +2,23 @@
 
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/se.motility/ziploq/badge.svg)](https://maven-badges.herokuapp.com/maven-central/se.motility/ziploq)
 
-An ingeniously simple device for merging and sequencing data from any number of data sources. It doesn't matter whether the input data is ordered or not, the output will always be ordered!
 
-### The pitch
+`Ziploq` is a lightweight message-synchronization device with ultra-high performance. It lets you quickly merge data 
+from any number of data sources reactively, without having to reach for large frameworks such as `Project Reactor` or 
+`Akka Streams`. It doesn't matter whether the input data is ordered or not, the output will always be ordered! (In case
+of data from external systems: data transmission delays and disconnections are all handled automatically 
+out-of-the-box, too!)
 
-`Ziploq` is a lightweight message-synchronization device with ultra-high performance. It let's you quickly join data from multiple sources in a reactive way, without having to go for bulky universal solutions such as `Project Reactor` or `Akka Streams`. With this tool, it's possible to merge and sequence up to 20 million msgs/s for ordered input and 10 million msgs/s for unordered input -- on a regular desktop computer!
+Ziploq is built with infinite real-time data sequences in mind, but works just as well for in-memory datasets. This 
+design results in a low memory footprint and a high message throughput. With this lib, it's easy to set up pipelines 
+capable of handling tens of millions of transactions per second ("tps") on a regular desktop computer (i5 6600)!
 
-For your convenience, Ziploq also provides strategies for handling backpressure on both Producer and Consumer side.
+For your convenience, Ziploq also provides simple strategies for handling backpressure on both Producer and Consumer 
+side.
 
-##### Example use case
 
 ![Ziploq; merging input sources](https://raw.githubusercontent.com/manstegling/ziploq/master/images/ziploq.png)
+_Merging 3 different types of data sources_
 
 ### Using Ziploq
 
@@ -24,7 +30,8 @@ Create a new `Ziploq` instance using the factory
 Ziploq<MyMsg> ziploq = ZiploqFactory.create(msgComparator);
 ```
 
-After registering your data sources, retrieve the merged output as a regular Java `Stream`  to set up your reactive data processing pipe
+After registering your data sources, retrieve the merged output as a regular Java `Stream` to set up your reactive 
+data processing pipe
 
 ```java
 ziploq.stream()
@@ -32,13 +39,15 @@ ziploq.stream()
       .forEach(result -> doSomethingUseful(result));
 ```
 
-The stream will emit messages when available, or otherwise block. When `complete()` has been called for all input consumers and all messages have been processed, the `Stream` will terminate.
+The stream will emit messages when available, or otherwise block. When `complete()` has been called for all input 
+consumers and all messages have been processed, the `Stream` will terminate.
 
 It is also possible to retrieve the ordered output by using old-school methods `take()` and `poll()`.
 
-##### Registering ordered data sets
+##### Registering in-memory data sets
 
-If you've already got all data from a source available in-memory you can register the full _ordered_ dataset directly with the `Ziploq` instance
+If you've already got all data from a source available in-memory you can register the full _ordered_ dataset directly 
+with the `Ziploq` instance
 
 ```java
 ziploq.registerDataset(dataset, toTimestamp, name);
@@ -58,63 +67,95 @@ or an _unordered_ input source
 SynchronizedConsumer<MyMsg> consumer = ziploq.registerUnordered(businessDelay, capacity, backPressureStrategy, name, comparator)); 
 ```
 
-Feed messages into the Ziploq machinery by calling `consumer.onEvent(msg, businessTs)` for each incoming message. When no more messages are available, call `complete()`.
+Feed messages into the Ziploq machinery by calling `consumer.onEvent(msg, businessTs)` for each incoming message. When 
+no more messages are available, call `complete()`.
 
 
 ### ZipFlow keeps data flowing (even when there's no input)
 
-If you're developing a real-time application that has to keep pushing messages even when some input data sources are not producing any -- `ZipFlow` is the way to go. To create an instance, do exactly as before but add a `systemDelay` parameter:
+If you're developing a real-time application that has to keep pushing messages even when some input data sources are 
+not producing any -- `ZipFlow` is the way to go. To create an instance, do exactly as before but add a `systemDelay` 
+parameter:
 
 ```java
 ZipFlow<MyMsg> zipflow = ZiploqFactory.create(systemDelay, msgComparator);
 ```
 
-When registering input data sources with ZipFlow you'll get the turbo-charged flavor of `SynchronizedConsumer` called `FlowConsumer`. These consumers use a vector clock consisting of both business time and system time, where the latter is used for heartbeating functionality. This allows messages to be dispatched through the synchronizer even at times when some input sources are silent, as long as they progress their system time.
+When registering input data sources with ZipFlow you'll get the turbo-charged flavor of `SynchronizedConsumer` called 
+`FlowConsumer`. These consumers use a vector clock consisting of both business time and system time, where the latter 
+is used for heartbeating functionality. This allows messages to be dispatched through the synchronizer even at times 
+when some input sources are silent, as long as they progress their system time.
 
-To publish updates for the system clock at times when no new messages are available, simply call `consumer.updateSystemTime(systemTs)`.
+To publish updates for the system clock at times when no new messages are available, simply call 
+`consumer.updateSystemTime(systemTs)`.
 
 ### The vector clock explained
 
+Reasoning about message sequences becomes much easier when looking at 2D plots of business time vs system time. The 
+following chart illustrates standard scenarios seen from a vector clock perspective.
+
+![Ziploq; vector clock](https://raw.githubusercontent.com/manstegling/ziploq/master/images/ziploq-2d-time-concept.png)
+
 ##### Unordered data
 
-Sorting of unordered data is carried out [on-line](https://en.wikipedia.org/wiki/Online_algorithm). You only need to know how much delayed messages can be (at most) in terms of the _business clock_ compared to previously processed messages from the same source. Setting the `businessDelay` to, for example, 100ms means we never expect to see a message with business timestamp _T-101_ coming in after a message from the same source with business timestamp _T_ has already been processed.
+Sorting of unordered data is carried out [online](https://en.wikipedia.org/wiki/Online_algorithm). You only need to 
+know how much delayed messages can be (at most) in terms of the _business clock_ compared to previously processed 
+messages from the same source. Setting the `businessDelay` to, for example, 100ms means we never expect to see a 
+message with business timestamp _T-101_ coming in after a message from the same source with business timestamp _T_ 
+has already been processed.
 
-The _business clock_ is ideally based on epoch millisecond timestamps from a global business clock. However, business time is completely decoupled from system time and timestamps are handled internally as `long` values so any integer, such as a global sequence number, can be used. Messages are always sequenced first with respect to the business clock. In high-frequency applications, secondary sorting criteria can easily be configured to provide sub-millisecond (total) ordering.
+![Ziploq; unordered source](https://raw.githubusercontent.com/manstegling/ziploq/master/images/ziploq-unordered-source.png)
+
+
+Most of the time, we recommend sourcing the _business clock_ from a global business clock (epoch millisecond 
+timestamps). However, business time is completely decoupled from system time, so any integer (64-bit long), such as a 
+global sequence number, can be used. The key is that messages are always being sequenced first with respect to the 
+business clock. In high-frequency applications, secondary sorting criteria can easily be configured to provide 
+sub-millisecond (total) ordering.
+
 
 ##### Real-time applications
 
-`ZipFlow` has been designed with real-time processing in mind. Therefore, a secondary clock has been introduced, which is called the _system clock_. Making each producer continuously publish their system time allows for advancing the message sequence even at times when input sources are silent. This mechanism can be considered a modern form of heartbeating; in which all sources drive event time together. The heartbeating frequency is governed by the `systemDelay` parameter; during normal operation it is expected that system time is progressed in steps not larger than the configured delay.
+`ZipFlow` has been designed with real-time processing in mind. Therefore, a secondary clock has been introduced, which 
+is called the _system clock_. Making each producer continuously publish their system time allows for advancing the 
+message sequence even at times when input sources are silent. This mechanism can be considered a modern form of 
+heartbeating; in which all sources drive event time together. The heartbeating frequency is governed by the 
+`systemDelay` parameter; during normal operation it is expected that system time is progressed in steps not larger than 
+the configured delay.
 
-When dealing with real-time processing, the system clock should be driven by wall-clock time. In this way, it's just a matter of configuration when it comes to how much real-time delay is acceptable within your application.
+![Ziploq; unordered source](https://raw.githubusercontent.com/manstegling/ziploq/master/images/ziploq-two-ordered-sources.png)
 
-In many real-world applications the data is coming from external data sources. In case a data connection goes down, the producer should stop publishing system time. Instead, simply wait until the connection has been re-established and then start publishing messages again. From a vector clock perspective this might involve a jump in system (wall-clock) time, but no immediate jump in business time. Ziploq will automatically detect such a jump in the producer's system clock and initiate a recovery grace period for that producer (in system time) to complete its recovery and, thus, guarantee output sequencing is not impacted.
+When dealing with real-time processing, the system clock should be driven by wall-clock time. In this way, it's just a 
+matter of configuration when it comes to how much real-time delay is acceptable within your application.
 
-### Background and rationale
+In many real-world applications the data is coming from external data sources. In case a data connection goes down, the 
+producer should stop publishing system time. Instead, simply wait until the connection has been re-established and then 
+start publishing messages again. From a vector clock perspective this might involve a jump in system (wall-clock) time, 
+but no immediate jump in business time. Ziploq will automatically detect such a jump in the producer's system clock and 
+initiate a recovery grace period for that producer (in system time) to complete its recovery and, thus, guarantee 
+output sequencing is not impacted.
 
-There's no way to merge multiple ordered message streams built into the Java language. This is a significant gap impacting many message-passing and data crunching applications. Even if there were a simple method for merging streams in an efficient way while maintaining order, in many real-world scenarios we don't event have access to ordered input! Due to multicast protocols, weird upstream architecture or data transmission latencies, the input data reaching us often comes out-of-order in some way or another.
+![Ziploq; disconnect recovery](https://raw.githubusercontent.com/manstegling/ziploq/master/images/ziploq-disconnect-recovery.png)
 
-Ziploq aims to bridge that gap by providing an intuitive API for merging data from any number of sources.
 
 ### Logging
 
-This library uses SLF4J for logging, so please make sure you've got your logger configured to handle this. Log entries will be written if any input sources break the ordering contract resulting in out-of-sequence message flows.
+This library uses SLF4J for logging, so please make sure you've got your logger configured to handle this. Log entries 
+will be written if any input sources break the ordering contract resulting in out-of-sequence message flows.
 
-By default, only a non-decreasing business timestamp sequence is enforced. If you'd want the framework to also check that the _input data sequence_ is compliant with the configured _Comparator_ (if any) set the system property `ziploq.log.comparator_compliant=true`.
+By default, only a non-decreasing business timestamp sequence is enforced. If you'd want the framework to also check 
+that the _input data sequence_ is compliant with the configured _Comparator_ (if any) set the system property 
+`ziploq.log.comparator_compliant=true`.
 
-The framework also warns when the blocking action to wait for output has not returned within a certain time-frame. If this happens, information about the sources that are silent--causing the block--will be provided. The default timeout is 120000 milliseconds (2 minutes) and can be adjusted with the system property `ziploq.log.wait_timeout`.
+The framework also warns when the blocking action to wait for output has not returned within a certain time-frame. If 
+this happens, information about the sources that are silent--causing the block--will be provided. The default timeout 
+is 120000 milliseconds (2 minutes) and can be adjusted with the system property `ziploq.log.wait_timeout`.
 
-
-### Other stuff
-
-If there's a known systematic time discrepancy between producers, this discrepancy must be added to the `systemDelay` parameter. For example, if producer `B` most of the time provide a system timestamp 500ms later than producer `A` for messages having the same business timestamp, do add 500ms to your desired value for the system time delay parameter to offset this.
-
-The classes `OrderedSyncQueue` and `UnorderedSyncQueue` are useful on their own for Single-Producer Single-Consumer (SPSC) scenarios. The latter comes with built-in on-line sorting for queued messages based on a vector clock. They're both lock-free concurrent SPSC queues built on top of data structures from the lightning-fast [JCTools](https://github.com/JCTools/JCTools) library. Create instances of these queues directly using the associated `SpscSyncQueueFactory`.
-
-_Note:_ Illustrations describing how the vector clock and sorting mechanism work are in the making.
 
 ### Code example
 
-Creating a `Ziploq` instance, registering one dataset and two ordered input data producers and then operating on the merged, ordered output is done in the following way.
+Creating a `Ziploq` instance, registering one dataset and two ordered input data producers and then operating on the 
+merged, ordered output is done in the following way
 
 ```java
 public static void main(String[] args) {
@@ -189,7 +230,8 @@ class MyMsg {
 }
 ```
 
-Running this program will output messages from 0 to 1000. The `tiebreaker` comparator guarantees that "Dataset" messages come first, then "Producer-A" messages and last "Producer-B" messages when timestamps are equal.
+Running this program will output messages from 0 to 1000. The `tiebreaker` comparator guarantees that "Dataset" 
+messages come first, then "Producer-A" messages and last "Producer-B" messages when timestamps are equal.
 
 ```
 Dataset-0
@@ -207,14 +249,27 @@ Producer-A-1000
 Producer-B-1000
 ```
 
-Remember that we had registered both input source with capacity set to '128' and `BackPressureStrategy.BLOCK`? This means none of the consumers will have held more than 128 messages in memory, at the same time, when the input data was synchronized. Instead, if a consumer's internal buffer were to reach 128 messages its `onEvent(...)` method would block until the downstream catches up, ensuring that we never go out-of-memory.
+Remember that we had registered both input source with capacity set to '128' and `BackPressureStrategy.BLOCK`? This 
+guarantees none of the consumers will ever have held more than 128 messages in memory (at the same time) when the 
+input data was merged. Instead, if a consumer's internal buffer were to reach 128 messages its `onEvent(...)` method 
+would block until the downstream catches up, ensuring that we never go out-of-memory.
 
-This might not be a concern when only passing a few thousand Strings through the pipe, but just imagine scenarios in which we're processing millions or even billions of rich messages!
+This might not be a concern when only passing a few thousand Strings through the pipe, but just imagine scenarios in 
+which we're processing millions or even billions of rich messages!
+
+
+### Standalone SPSC queues 
+
+Feel free to be creative! The class `SpscSyncQueueFactory` allows direct creation of Single-Producer Single-Consumer 
+(SPSC) queues, which can be useful as buffers, etc. For example, queues from `createUnordered(...)` comes with built-in 
+online sorting for queued messages based on a vector clock. All queues are lock-free concurrent SPSC queues built on 
+top of data structures from the lightning-fast [JCTools](https://github.com/JCTools/JCTools) library.
 
 
 ### Leave feedback
 
-Feel free to reach out if you have any questions or queries! For issues, please use Github's issue tracking functionality.
+Feel free to reach out if you have any questions or queries! For issues, please use Github's issue 
+tracking functionality.
 
  ----
 
