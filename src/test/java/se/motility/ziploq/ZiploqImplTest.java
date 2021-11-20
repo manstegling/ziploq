@@ -165,7 +165,7 @@ public class ZiploqImplTest {
     }
     
     /**
-     * Producer thread blocks on waiting for capacity to release sorted messages
+     * Producer thread blocks on waiting for capacity to release sorted messages (degenerate case)
      * Consumer thread blocks on waiting for sorted messages to become available
      * Will cause dead-lock if signaling is not handled correctly
      */
@@ -174,7 +174,7 @@ public class ZiploqImplTest {
         long delay = 1L;
         
         int capacity = 4;
-        int messages = 10_000;
+        int messages = 5_000;
         
         ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
         FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(
@@ -233,7 +233,7 @@ public class ZiploqImplTest {
     }
     
     /**
-     * Put a lot of stress on the producer-consumer interaction by setting low buffers
+     * Put a lot of stress on the producer-consumer interaction by setting low buffers (degenerate case)
      * Producer thread blocks on waiting for capacity to release sorted messages
      * Consumer thread blocks on waiting for sorted messages to become available
      * Will cause dead-lock if signaling is not handled correctly
@@ -241,7 +241,7 @@ public class ZiploqImplTest {
     @Test(timeout=20_000)
     public void orderedSignallingProducerFirst() {
 
-        int messages = 10_000;
+        int messages = 5_000;
         
         ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
         FlowConsumer<MsgObject> consumer = ziploq.registerOrdered(2, BackPressureStrategy.BLOCK, TEST_SOURCE);
@@ -621,7 +621,7 @@ public class ZiploqImplTest {
         assertEquals(dataset1.size() + dataset2.size(), checker.getTotal());
     }
     
-    @Test(timeout=10_000)
+    @Test(timeout=20_000)
     public void streamMixed() {
         
         Collection<Msg> dataset1  = createOrdered(5000);
@@ -635,7 +635,7 @@ public class ZiploqImplTest {
         ziploq.registerDataset(dataset2, Msg::getTimestamp, "dataset2");
         
         //Create a data source producing data asynchronously
-        SynchronizedConsumer<Msg> consumer = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
+        SynchronizedConsumer<Msg> consumer = ziploq.registerOrdered(32, BackPressureStrategy.BLOCK, TEST_SOURCE);
         AsyncTestThread t = new AsyncTestThread(() -> addData(consumer, asyncData));
         
         SequenceChecker checker = new SequenceChecker();

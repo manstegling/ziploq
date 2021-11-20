@@ -15,7 +15,7 @@ public interface WaitStrategy {
      * @param attempts since last successful
      */
     public static void backOffWait(int attempts) {
-        if (attempts < 50) {
+        if (attempts <= 50) {
             Thread.yield();
         } else if(attempts == 51) {
             LockSupport.parkNanos(1L);
