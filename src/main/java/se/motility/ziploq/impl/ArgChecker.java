@@ -15,7 +15,7 @@ public interface ArgChecker {
      * {@code false} if value should be greater than or equal to threshold
      * @param argName to show in exception if value is not valid
      */
-    public static void validateLong(long value, long threshold, boolean below, String argName) {
+    static void validateLong(long value, long threshold, boolean below, String argName) {
         if(below ? (value > threshold) : (value < threshold)) {
             throw new IllegalArgumentException("Argument '" + argName + " must be " + 
                     threshold + " or " + (below ? "smaller " : "greater ") + ". Value is " + value);
@@ -27,7 +27,7 @@ public interface ArgChecker {
      * @param value to validate
      * @param argName to show in exception if value is not valid
      */
-    public static void notNull(Object value, String argName) {
+    static void notNull(Object value, String argName) {
         if (value == null) {
            throw new IllegalArgumentException("Argument '" + argName + "' is null."); 
         }

@@ -6,7 +6,6 @@
 package se.motility.ziploq.impl;
 
 import java.util.Comparator;
-import java.util.Optional;
 
 import se.motility.ziploq.api.Entry;
 
@@ -41,7 +40,7 @@ public class UnboundedSyncQueue<E> implements SpscSyncQueue<E> {
     }
     
     static <T> UnboundedSyncQueue<T> unorderedSyncQueue(long businessDelay,
-            long systemDelay, int capacity, Optional<Comparator<T>> comparator) {
+            long systemDelay, int capacity, Comparator<T> comparator) {
         SpscSyncQueue<T> queue = new UnorderedSyncQueue<>(
                 businessDelay, systemDelay, Integer.MAX_VALUE, comparator);
         return new UnboundedSyncQueue<>(queue, capacity);

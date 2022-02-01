@@ -4,8 +4,6 @@ import static org.junit.Assert.*;
 import static se.motility.ziploq.SyncTestUtils.*;
 import static se.motility.ziploq.SyncTestUtils.MsgObject.*;
 
-import java.util.Optional;
-
 import org.junit.Test;
 
 import se.motility.ziploq.SyncTestUtils.MsgObject;
@@ -25,7 +23,7 @@ public class DroppingOrderedQueueTest extends AbstractOrderedQueueTest {
     @Test
     public void acceptedMessages() {
         int capacity = 4; //4 is minimum capacity of underlying queue
-        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, COMPARATOR);
         FlowConsumer<MsgObject> consumer = ziploq.registerOrdered(capacity, getStrategy(), TEST_SOURCE); 
         
         assertNull(ziploq.poll());

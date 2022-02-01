@@ -7,7 +7,6 @@ package se.motility.ziploq.api;
 
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.Optional;
 import java.util.function.ToLongFunction;
 import java.util.stream.Stream;
 
@@ -57,13 +56,13 @@ public interface Ziploq<E> {
      *     //handle entry
      * }
      * </pre>
-     * @param <E> message type of the messages in the {@code Ziploq}
+     * @param <T> message type of the messages in the {@code Ziploq}
      * @return a special {@code Entry} indicating that all consumers have been
      * de-registered and no further messages will be provided
      */
     @SuppressWarnings("unchecked")
-    public static <E> Entry<E> getEndSignal() {
-        return (Entry<E>) END_SIGNAL;
+    static <T> Entry<T> getEndSignal() {
+        return (Entry<T>) END_SIGNAL;
     }
     
     /**
@@ -134,13 +133,13 @@ public interface Ziploq<E> {
      * ({@link BackPressureStrategy#UNBOUNDED}).
      * @param sourceName to be associated with this input source
      * @param comparator to use if messages from multiple queues have the exact same business
-     * timestamp. If {@link Optional#empty} is provided, no ordering is imposed on ties
+     * timestamp. If {@code null} is provided, no ordering is imposed on ties
      * @param <T> message type; must be a subclass of the synchronized type
      * @return {@link SynchronizedConsumer} to feed with input data
      */
     <T extends E> SynchronizedConsumer<T> registerUnordered(
                 long businessDelay, int softCapacity, BackPressureStrategy strategy,
-                String sourceName, Optional<Comparator<T>> comparator);
+                String sourceName, Comparator<T> comparator);
     
     /**
      * Registers a new ordered input source to be synchronized.
@@ -173,7 +172,7 @@ public interface Ziploq<E> {
      * @see #getEndSignal()
      **/
     @SuppressWarnings("rawtypes")
-    static final Entry END_SIGNAL = new Entry() {
+    Entry END_SIGNAL = new Entry() {
         private static final long serialVersionUID = 1L;
         @Override
         public Object getMessage() {

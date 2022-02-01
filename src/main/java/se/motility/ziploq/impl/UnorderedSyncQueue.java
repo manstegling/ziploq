@@ -6,7 +6,6 @@
 package se.motility.ziploq.impl;
 
 import java.util.Comparator;
-import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
@@ -45,10 +44,10 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
     private long ts2Max = 0L;
     private int lSize; //store Producer thread's local size guess to avoid unnecessary size() traversals
     
-    UnorderedSyncQueue(long businessDelay, long systemDelay, int softCapacity, Optional<Comparator<E>> comparator) {
-        Comparator<Entry<E>> cmp = comparator
-                .map(c -> this.comparator.thenComparing(Entry::getMessage, c))
-                .orElse(this.comparator);
+    UnorderedSyncQueue(long businessDelay, long systemDelay, int softCapacity, Comparator<E> comparator) {
+        Comparator<Entry<E>> cmp = comparator != null
+                ? this.comparator.thenComparing(Entry::getMessage, comparator)
+                : this.comparator;
         this.staging = new PriorityQueue<>(cmp);
         this.ready = new SpscLinkedQueue<>(); //unbounded
         this.businessDelay = businessDelay;

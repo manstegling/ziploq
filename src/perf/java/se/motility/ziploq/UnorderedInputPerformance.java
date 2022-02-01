@@ -3,7 +3,6 @@ package se.motility.ziploq;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.Benchmark;
@@ -77,12 +76,12 @@ public class UnorderedInputPerformance {
         @Setup(Level.Invocation)
         public synchronized void doSetup() {
             long systemDelay = 1000L;
-            this.ziploq = ZiploqFactory.create(systemDelay, Optional.ofNullable(comparator()));
+            this.ziploq = ZiploqFactory.create(systemDelay, comparator());
             this.producerList = new ArrayList<>();
             int messagesPerProducer = (totalMessages / producers) + 1;
             for (int i=0; i<producers; i++) {
                 FlowConsumer<Object> consumer = ziploq.registerUnordered(
-                        delay, capacity, mode.bps, TEST_SOURCE, Optional.empty());
+                        delay, capacity, mode.bps, TEST_SOURCE, null);
                 producerList.add(new UnorderedProducer(consumer, messagesPerProducer, msgsPerMilli, delay, mode.ws));
             }
         }

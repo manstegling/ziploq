@@ -14,7 +14,7 @@ public interface WaitStrategy {
      * for each subsequent call (up to 1ms) .
      * @param attempts since last successful
      */
-    public static void backOffWait(int attempts) {
+    static void backOffWait(int attempts) {
         if (attempts <= 50) {
             Thread.yield();
         } else if(attempts == 51) {
@@ -38,7 +38,7 @@ public interface WaitStrategy {
      * Wait for the specified amount of nanoseconds
      * @param nanos to wait
      */
-    public static void specificWait(long nanos) {
+    static void specificWait(long nanos) {
         LockSupport.parkNanos(nanos);
     }
     

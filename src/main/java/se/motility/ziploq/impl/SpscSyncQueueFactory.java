@@ -6,7 +6,6 @@
 package se.motility.ziploq.impl;
 
 import java.util.Comparator;
-import java.util.Optional;
 
 /**
  * Factory for creating instances of {@link SpscSyncQueue} 
@@ -20,7 +19,7 @@ public interface SpscSyncQueueFactory {
     /**
      * Property for how queues handle capacity restrictions
      */
-    public enum CapacityType {
+    enum CapacityType {
         /** Does not allow adding entries beyond specified capacity */
         BOUNDED,
         /** Allows adding entries beyond specified capacity but signals when this happens */
@@ -39,12 +38,12 @@ public interface SpscSyncQueueFactory {
      * milliseconds won't count towards the total capacity.
      * @param capacityType of the queue ({@link CapacityType#BOUNDED}/{@link CapacityType#UNBOUNDED})
      * @param comparator to use if multiple messages have the exact same business
-     * timestamp. If {@link Optional#empty} is provided, no ordering is imposed on ties.
+     * timestamp. If {@code null} is provided, no ordering is imposed on ties.
      * @param <E> message type
      * @return {@code SpscSyncQueue} to use with unordered input
      */
-    public static <E> SpscSyncQueue<E> createUnordered(long businessDelay, long systemDelay,
-            int softCapacity, CapacityType capacityType, Optional<Comparator<E>> comparator) {
+    static <E> SpscSyncQueue<E> createUnordered(long businessDelay, long systemDelay,
+            int softCapacity, CapacityType capacityType, Comparator<E> comparator) {
         ArgChecker.validateLong(businessDelay, 0, false, "businessDelay");
         ArgChecker.validateLong(businessDelay, systemDelay, true, "businessDelay");
         ArgChecker.validateLong(softCapacity, 1, false, "capacity");
@@ -62,7 +61,7 @@ public interface SpscSyncQueueFactory {
      * @param <E> message type
      * @return {@code SpscSyncQueue} to use with ordered input
      */
-    public static <E> SpscSyncQueue<E> createOrdered(int capacity, CapacityType capacityType) {
+    static <E> SpscSyncQueue<E> createOrdered(int capacity, CapacityType capacityType) {
         ArgChecker.validateLong(capacity, 1, false, "capacity");
         ArgChecker.notNull(capacityType, "capacityType");
         return capacityType == CapacityType.UNBOUNDED

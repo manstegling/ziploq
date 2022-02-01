@@ -7,7 +7,6 @@ import static se.motility.ziploq.SyncTestUtils.MsgObject.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.Phaser;
 import java.util.stream.IntStream;
 
@@ -38,8 +37,8 @@ public class BlockingUnorderedQueueTest extends AbstractUnorderedQueueTest {
         
         int capacity = 8;
         int bDelay = 10;
-        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(bDelay, capacity, getStrategy(), TEST_SOURCE, Optional.empty());
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, null);
+        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(bDelay, capacity, getStrategy(), TEST_SOURCE, null);
         
         Phaser ours = new Phaser();
         Phaser remote = new Phaser();

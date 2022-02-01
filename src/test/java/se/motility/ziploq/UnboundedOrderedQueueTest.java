@@ -2,7 +2,6 @@ package se.motility.ziploq;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import org.junit.Test;
 import se.motility.ziploq.SyncTestUtils.MsgObject;
@@ -30,7 +29,7 @@ public class UnboundedOrderedQueueTest extends AbstractOrderedQueueTest {
     @Test
     public void addBeyondCapacity() throws InterruptedException {
         int capacity = 4;
-        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.of(COMPARATOR));
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, COMPARATOR);
         FlowConsumer<MsgObject> consumer = ziploq.registerOrdered(capacity, getStrategy(), TEST_SOURCE);
         
         List<TestEntry> expected = new ArrayList<>();

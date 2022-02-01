@@ -161,7 +161,7 @@ merged, ordered output is done in the following way
 public static void main(String[] args) {
     //Create ziploq
     Comparator<MyMsg> tiebreaker = Comparator.comparing(MyMsg::getMessage);
-    Ziploq<MyMsg> ziploq = ZiploqFactory.create(Optional.of(tiebreaker));
+    Ziploq<MyMsg> ziploq = ZiploqFactory.create(tiebreaker);
     
     //Register dataset
     List<MyMsg> dataset = loadDataset("Dataset");

@@ -6,7 +6,6 @@
 package se.motility.ziploq.api;
 
 import java.util.Comparator;
-import java.util.Optional;
 
 import se.motility.ziploq.impl.ZiploqImpl;
 
@@ -30,12 +29,12 @@ public interface ZiploqFactory {
      * the maximum drift allowed between system time and <i>business time</i>. Must be non-negative.
      * @param comparator to use if multiple messages have the exact same business timestamp.
      * This comparator will also be used to determine ordering in instances of business timestamp
-     * ties when sequencing unordered input data. If {@link Optional#empty} is provided, no
+     * ties when sequencing unordered input data. If {@code null} is provided, no
      * ordering is imposed on ties.
      * @return a new {@code ZipFlow} instance
      * @param <E> type of messages to be synchronized
      */
-    public static <E> ZipFlow<E> create(long systemDelay, Optional<Comparator<E>> comparator) {
+    static <E> ZipFlow<E> create(long systemDelay, Comparator<E> comparator) {
         if(systemDelay <= 0) {
             throw new IllegalArgumentException("System delay must greater than 0. Provided value was " + systemDelay);
         }
@@ -52,12 +51,12 @@ public interface ZiploqFactory {
      * </ol>
      * @param comparator to use if multiple messages have the exact same business timestamp.
      * This comparator will also be used to determine ordering in instances of business timestamp
-     * ties when sequencing unordered input data. If {@link Optional#empty} is provided, no
+     * ties when sequencing unordered input data. If {@code null} is provided, no
      * ordering is imposed on ties.
      * @return a new {@code Ziploq} instance
      * @param <E> type of messages to be synchronized
      */
-    public static <E> Ziploq<E> create(Optional<Comparator<E>> comparator) {
+    static <E> Ziploq<E> create(Comparator<E> comparator) {
         return new ZiploqImpl<>(0, comparator);
     }
     

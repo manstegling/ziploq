@@ -3,7 +3,6 @@ package se.motility.ziploq;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.Benchmark;
@@ -115,7 +114,7 @@ public class OrderedInputPerformance {
         @Setup(Level.Invocation)
         public synchronized void doSetup() {
             long systemDelay = 1000L;
-            this.ziploq = ZiploqFactory.create(systemDelay, Optional.ofNullable(comparator()));
+            this.ziploq = ZiploqFactory.create(systemDelay, comparator());
             this.producerList = new ArrayList<>();
             int messagesPerProducer = (totalMessages / producers) + 1;
             for (int i=0; i<producers; i++) {
@@ -158,7 +157,7 @@ public class OrderedInputPerformance {
         @Setup(Level.Invocation)
         public synchronized void doSetup() {
             long systemDelay = 1000L;
-            this.ziploq = ZiploqFactory.create(systemDelay, Optional.ofNullable(comparator()));
+            this.ziploq = ZiploqFactory.create(systemDelay, comparator());
             this.producerList = new ArrayList<>();
             int messagesPerProducer = (totalMessages / producers) + 1;
             for (int i=0; i<producers; i++) {
@@ -199,7 +198,7 @@ public class OrderedInputPerformance {
         @Setup(Level.Invocation)
         public synchronized void doSetup() {
             long systemDelay = 1000L;
-            this.ziploq = ZiploqFactory.create(systemDelay, Optional.ofNullable(comparator()));
+            this.ziploq = ZiploqFactory.create(systemDelay, comparator());
             this.producerList = new ArrayList<>();
             int messagesPerProducer = (totalMessages / (3*producerSets)) + 1;
             for(int i=0;i<producerSets;i++) {
@@ -246,7 +245,7 @@ public class OrderedInputPerformance {
         @Setup(Level.Invocation)
         public synchronized void doSetup() {
             long systemDelay = 1000L;
-            this.ziploq = ZiploqFactory.create(systemDelay, Optional.ofNullable(comparator()));
+            this.ziploq = ZiploqFactory.create(systemDelay, comparator());
             this.producerList = new ArrayList<>();
             int messagesPerProducer = (totalMessages / (3*producerSets)) + 1;
             for(int i=0;i<producerSets;i++) {

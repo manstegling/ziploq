@@ -8,7 +8,6 @@ package se.motility.ziploq.impl;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -72,7 +71,7 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
     private final PriorityQueue<EntryImpl<E>> heads;
     private final long systemDelay;
     private final Comparator<Entry<E>> effectiveComparator;
-    private final Optional<Comparator<E>> secondaryComparator;
+    private final Comparator<E> secondaryComparator;
     
     private volatile boolean dirtyQueues   = true;
     private volatile boolean dirtySystemTs = true;
@@ -81,10 +80,10 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
     private EntryImpl<E> previous;
     private long lastLoggedWait;
     
-    public ZiploqImpl(long systemDelay, Optional<Comparator<E>> comparator) {
+    public ZiploqImpl(long systemDelay, Comparator<E> comparator) {
         Comparator<Entry<E>> primaryCmp = Comparator.comparingLong(Entry::getBusinessTs);
-        this.effectiveComparator = !comparator.isPresent() ? primaryCmp :
-            primaryCmp.thenComparing(Entry::getMessage, comparator.get());
+        this.effectiveComparator = comparator == null ? primaryCmp :
+            primaryCmp.thenComparing(Entry::getMessage, comparator);
         this.heads = new PriorityQueue<>(effectiveComparator);
         this.systemDelay = systemDelay;
         this.secondaryComparator = comparator;
@@ -116,14 +115,13 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
     @Override
     public <T extends E> FlowConsumer<T> registerUnordered(
             long businessDelay, int softCapacity, BackPressureStrategy strategy,
-            String sourceName, Optional<Comparator<T>> comparator) {
-        ArgChecker.notNull(comparator, "comparator (Optional!)");
-        Optional<Comparator<T>> effectiveCmp;
-        if (secondaryComparator.isPresent()) {
+            String sourceName, Comparator<T> comparator) {
+        Comparator<T> effectiveCmp;
+        if (secondaryComparator != null) {
             @SuppressWarnings("unchecked") //downcasting type parameter for Comparator is safe
-            Comparator<T> cmp = (Comparator<T>) secondaryComparator.get();
-            effectiveCmp = Optional.of(comparator.isPresent() ? 
-                    cmp.thenComparing(comparator.get()) : cmp);
+            Comparator<T> cmp = (Comparator<T>) secondaryComparator;
+            effectiveCmp = comparator != null ?
+                    cmp.thenComparing(comparator) : cmp;
         } else {
             effectiveCmp = comparator;
         }

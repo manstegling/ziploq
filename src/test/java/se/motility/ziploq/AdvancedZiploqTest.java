@@ -1,7 +1,5 @@
 package se.motility.ziploq;
 
-import java.util.Optional;
-
 import org.junit.Test;
 import se.motility.ziploq.SyncTestUtils.AsyncTestThread;
 import se.motility.ziploq.SyncTestUtils.MsgObject;
@@ -24,11 +22,11 @@ public class AdvancedZiploqTest {
         long delay = 1000L;
         int messages = 1000;
         
-        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(delay, Optional.empty());
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(delay, null);
         FlowConsumer<MsgObject> consumer1 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
         FlowConsumer<MsgObject> consumer2 = ziploq.registerOrdered(5, BackPressureStrategy.BLOCK, TEST_SOURCE);
         FlowConsumer<MsgObject> consumer3 = ziploq.registerUnordered(
-                10, 5, BackPressureStrategy.BLOCK, TEST_SOURCE, Optional.empty());
+                10, 5, BackPressureStrategy.BLOCK, TEST_SOURCE, null);
 
         
         AsyncTestThread t1 = new AsyncTestThread(() -> addToQueue(consumer1, messages));

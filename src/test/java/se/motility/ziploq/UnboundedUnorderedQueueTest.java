@@ -1,6 +1,5 @@
 package se.motility.ziploq;
 
-import org.junit.Test;
 import se.motility.ziploq.api.BackPressureStrategy;
 
 import static org.junit.Assert.*;

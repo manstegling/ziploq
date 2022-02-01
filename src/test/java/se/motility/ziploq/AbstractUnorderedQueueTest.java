@@ -4,8 +4,6 @@ import static org.junit.Assert.*;
 import static se.motility.ziploq.SyncTestUtils.*;
 import static se.motility.ziploq.SyncTestUtils.MsgObject.*;
 
-import java.util.Optional;
-
 import org.junit.Test;
 
 import se.motility.ziploq.SyncTestUtils.MsgObject;
@@ -25,8 +23,8 @@ public abstract class AbstractUnorderedQueueTest {
         
         long delay = 5L;
         
-        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), TEST_SOURCE, Optional.empty());
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, null);
+        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), TEST_SOURCE, null);
         
         //E1: (TS1, 0)
         TestEntry e1 = consume(consumer, OBJECT_1, TS_1,             ZERO); //#1
@@ -52,8 +50,8 @@ public abstract class AbstractUnorderedQueueTest {
         
         long delay = 5L;
         
-        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), TEST_SOURCE, Optional.empty());
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, null);
+        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), TEST_SOURCE, null);
         
         //E1: (TS1+3, 0)
         TestEntry e1 = consume(consumer, OBJECT_1, TS_1 + 3,         ZERO); //#4
@@ -85,8 +83,8 @@ public abstract class AbstractUnorderedQueueTest {
     public void secondarySort() {
         long delay = 5L;
         
-        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), TEST_SOURCE, Optional.of(COMPARATOR));
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, null);
+        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(delay, 5, getStrategy(), TEST_SOURCE, COMPARATOR);
         
         //E1: (TS1, 0, O2)
         TestEntry e1 = consume(consumer, OBJECT_2, TS_1,             ZERO); //#2
@@ -120,8 +118,8 @@ public abstract class AbstractUnorderedQueueTest {
         long bDelay = 5L;
         long sDelay = 10L;
         
-        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(sDelay, Optional.empty());
-        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(bDelay, 5, getStrategy(), TEST_SOURCE, Optional.of(COMPARATOR));
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(sDelay, null);
+        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(bDelay, 5, getStrategy(), TEST_SOURCE, COMPARATOR);
         
         //E1: (TS1, TS1, O1)
         TestEntry e1 = consume(consumer, OBJECT_1, TS_1, TS_1);              //#1
@@ -150,8 +148,8 @@ public abstract class AbstractUnorderedQueueTest {
     
     @Test(expected = IllegalStateException.class)
     public void onEventAfterComplete() {
-        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(10L, 5, getStrategy(), TEST_SOURCE, Optional.of(COMPARATOR));
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, null);
+        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(10L, 5, getStrategy(), TEST_SOURCE, COMPARATOR);
         consumer.complete();
         consume(consumer, OBJECT_1, ZERO, ZERO);
         fail();
@@ -159,8 +157,8 @@ public abstract class AbstractUnorderedQueueTest {
     
     @Test(expected = IllegalStateException.class)
     public void updateSystemTimeAfterComplete() {
-        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, Optional.empty());
-        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(10L, 5, getStrategy(), TEST_SOURCE, Optional.of(COMPARATOR));
+        ZipFlow<MsgObject> ziploq = ZiploqFactory.create(100L, null);
+        FlowConsumer<MsgObject> consumer = ziploq.registerUnordered(10L, 5, getStrategy(), TEST_SOURCE, COMPARATOR);
         consumer.complete();
         consumer.updateSystemTime(TS_1);
         fail();

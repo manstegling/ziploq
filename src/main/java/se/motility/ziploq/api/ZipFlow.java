@@ -6,7 +6,6 @@
 package se.motility.ziploq.api;
 
 import java.util.Comparator;
-import java.util.Optional;
 
 /**
  * A device for synchronizing and sequencing messages from any number of input sources.
@@ -71,14 +70,14 @@ public interface ZipFlow<E> extends Ziploq<E> {
      * ({@link BackPressureStrategy#UNBOUNDED}).
      * @param sourceName to be associated with this input source
      * @param comparator to use if messages from multiple queues have the exact same business
-     * timestamp. If {@link Optional#empty} is provided, no ordering is imposed on ties
+     * timestamp. If {@code null} is provided, no ordering is imposed on ties
      * @param <T> message type; must be a subclass of the synchronized type
      * @return {@link FlowConsumer} to feed with input data
      */
     @Override
     <T extends E> FlowConsumer<T> registerUnordered(
                 long businessDelay, int softCapacity, BackPressureStrategy strategy,
-                String sourceName, Optional<Comparator<T>> comparator);
+                String sourceName, Comparator<T> comparator);
     
 
     /**
