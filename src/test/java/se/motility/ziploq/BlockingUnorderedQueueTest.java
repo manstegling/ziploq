@@ -30,7 +30,7 @@ public class BlockingUnorderedQueueTest extends AbstractUnorderedQueueTest {
     public void compositeTest() throws InterruptedException {
         /**
          * This test works because capacity is a power of 2.
-         * The SpscArrayQueue implementation currently used
+         * The MpscArrayQueue implementation currently used
          * rounds any non-power of 2 capacity to nearest
          * bigger power of 2.
          */

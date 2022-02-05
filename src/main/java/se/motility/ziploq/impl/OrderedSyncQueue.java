@@ -8,8 +8,8 @@ package se.motility.ziploq.impl;
 import java.util.Queue;
 
 import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.SpscArrayQueue;
-import org.jctools.queues.SpscLinkedQueue;
+import org.jctools.queues.MpscArrayQueue;
+import org.jctools.queues.MpscLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,9 +22,9 @@ import se.motility.ziploq.api.RuntimeInterruptedException;
  * @author M Tegling
  * 
  * @param <E> message type
- * @see SpscSyncQueue
+ * @see SyncQueue
  */
-public class OrderedSyncQueue<E> implements SpscSyncQueue<E> {
+public class OrderedSyncQueue<E> implements SyncQueue<E> {
     
     private static final long ONE_MILLISECOND = 1_000_000L; //throughput ~ capacity x 1000 events/s
     private static final Logger LOG = LoggerFactory.getLogger(OrderedSyncQueue.class);
@@ -35,7 +35,7 @@ public class OrderedSyncQueue<E> implements SpscSyncQueue<E> {
     private long lastTs = 0;
     
     OrderedSyncQueue(int capacity) {
-        this.ready = capacity > 0 ? new SpscArrayQueue<>(capacity) : new SpscLinkedQueue<>();
+        this.ready = capacity > 0 ? new MpscArrayQueue<>(capacity) : new MpscLinkedQueue<>();
         this.capacity = ready instanceof MessagePassingQueue ? //retrieve actual capacity (power of 2)
             ((MessagePassingQueue<?>) ready).capacity() : capacity;
     }

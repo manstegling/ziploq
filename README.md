@@ -258,11 +258,11 @@ This might not be a concern when only passing a few thousand Strings through the
 which we're processing millions or even billions of rich messages!
 
 
-### Standalone SPSC queues 
+### Standalone queues 
 
-Feel free to be creative! The class `SpscSyncQueueFactory` allows direct creation of Single-Producer Single-Consumer 
-(SPSC) queues, which can be useful as buffers, etc. For example, queues from `createUnordered(...)` comes with built-in 
-online sorting for queued messages based on a vector clock. All queues are lock-free concurrent SPSC queues built on 
+Feel free to be creative! The class `SyncQueueFactory` allows direct creation of Multi-Producer Single-Consumer 
+(MPSC) queues, which can be useful as buffers, etc. For example, queues from `createUnordered(...)` comes with built-in 
+online sorting for queued messages based on a vector clock. All queues are lock-free concurrent MPSC queues built on 
 top of data structures from the lightning-fast [JCTools](https://github.com/JCTools/JCTools) library.
 
 

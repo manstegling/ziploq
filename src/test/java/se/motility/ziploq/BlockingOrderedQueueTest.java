@@ -28,7 +28,7 @@ public class BlockingOrderedQueueTest extends AbstractOrderedQueueTest {
     public void blockWhenFull() {
         /**
          * This test works because capacity is a power of 2.
-         * The SpscArrayQueue implementation currently used
+         * The MpscArrayQueue implementation currently used
          * rounds any non-power of 2 capacity to nearest
          * bigger power of 2.
          */

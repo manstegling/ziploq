@@ -3,9 +3,9 @@ package se.motility.ziploq;
 import org.junit.Test;
 import se.motility.ziploq.SyncTestUtils.MsgObject;
 import se.motility.ziploq.SyncTestUtils.TestEntry;
-import se.motility.ziploq.impl.SpscSyncQueue;
-import se.motility.ziploq.impl.SpscSyncQueueFactory;
-import se.motility.ziploq.impl.SpscSyncQueueFactory.CapacityType;
+import se.motility.ziploq.impl.SyncQueue;
+import se.motility.ziploq.impl.SyncQueueFactory;
+import se.motility.ziploq.impl.SyncQueueFactory.CapacityType;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -17,19 +17,19 @@ public class OrderedQueueTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void zeroCapacity() {
-        SpscSyncQueue<Object> q = SpscSyncQueueFactory.createOrdered(0, CapacityType.BOUNDED);
+        SyncQueue<Object> q = SyncQueueFactory.createOrdered(0, CapacityType.BOUNDED);
         assertNotNull(q);
     }
     
     @Test(expected = IllegalArgumentException.class)
     public void nullCapacityType() {
-        SpscSyncQueue<Object> q = SpscSyncQueueFactory.createOrdered(1, null);
+        SyncQueue<Object> q = SyncQueueFactory.createOrdered(1, null);
         assertNotNull(q);
     }
     
     @Test
     public void peek() {
-        SpscSyncQueue<MsgObject> q = SpscSyncQueueFactory.createOrdered(1, CapacityType.BOUNDED);
+        SyncQueue<MsgObject> q = SyncQueueFactory.createOrdered(1, CapacityType.BOUNDED);
         TestEntry e1 = new TestEntry(OBJECT_1, 0L, 0L, true);
         assertTrue(q.offer(e1));
         assertEquals(1, q.readySize());
@@ -42,7 +42,7 @@ public class OrderedQueueTest {
     @Test
     public void boundedCapacity() {
         int capacity = 16; // Must be power of 2
-        SpscSyncQueue<MsgObject> q = SpscSyncQueueFactory.createOrdered(capacity, CapacityType.BOUNDED);
+        SyncQueue<MsgObject> q = SyncQueueFactory.createOrdered(capacity, CapacityType.BOUNDED);
         assertEquals(capacity, q.remainingCapacity());
         
         //Insert 'capacity' messages to fill the queue
@@ -69,7 +69,7 @@ public class OrderedQueueTest {
     @Test
     public void unboundedCapacity() {
         int capacity = 128; //<-- Magic number matching the granularity of capacity checks in unbounded queues
-        SpscSyncQueue<MsgObject> q = SpscSyncQueueFactory.createOrdered(capacity, CapacityType.UNBOUNDED);
+        SyncQueue<MsgObject> q = SyncQueueFactory.createOrdered(capacity, CapacityType.UNBOUNDED);
         assertEquals(capacity, q.remainingCapacity()); // Power of 2
         
         //Insert 'capacity' messages to fill the queue

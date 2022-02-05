@@ -31,7 +31,7 @@ public class FlowConsumerImpl<T> implements FlowConsumer<T> {
     private static final AtomicInteger ID_GEN = new AtomicInteger(0);
     private static final String ID_PREFIX = "SyncQueue-";
     
-    private final SpscSyncQueue<T> queue;
+    private final SyncQueue<T> queue;
     private final String id;
     private final BackPressureStrategy strategy;
     private final long systemDelay;
@@ -45,7 +45,7 @@ public class FlowConsumerImpl<T> implements FlowConsumer<T> {
     
     private boolean inHeads = false; //only ever modified by Ziploq output thread
     
-    FlowConsumerImpl(SpscSyncQueue<T> queue, long systemDelay,
+    FlowConsumerImpl(SyncQueue<T> queue, long systemDelay,
             BackPressureStrategy strategy, Runnable signalUpdate, String name) {
         this.queue = queue;
         this.id = ID_PREFIX + ID_GEN.incrementAndGet() + "-" + name;

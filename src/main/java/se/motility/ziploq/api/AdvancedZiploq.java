@@ -8,10 +8,10 @@ package se.motility.ziploq.api;
 import java.util.stream.Stream;
 
 import se.motility.ziploq.impl.Splitr;
-import se.motility.ziploq.impl.SpscSyncQueue;
-import se.motility.ziploq.impl.SpscSyncQueueFactory;
+import se.motility.ziploq.impl.SyncQueue;
+import se.motility.ziploq.impl.SyncQueueFactory;
 import se.motility.ziploq.impl.WaitStrategy;
-import se.motility.ziploq.impl.SpscSyncQueueFactory.CapacityType;
+import se.motility.ziploq.impl.SyncQueueFactory.CapacityType;
 
 /**
  * Utility class providing advanced tools for working with the Ziploq framework.
@@ -42,13 +42,13 @@ public final class AdvancedZiploq {
      * than waiting for a <i>terminal operation</i> to be invoked on the returned {@code Stream}
      */
     public static <E> Stream<Entry<E>> streamWithWorker(Ziploq<E> ziploq, int bufferSize) {
-        SpscSyncQueue<E> buffer = SpscSyncQueueFactory.createOrdered(bufferSize, CapacityType.BOUNDED);
+        SyncQueue<E> buffer = SyncQueueFactory.createOrdered(bufferSize, CapacityType.BOUNDED);
         new Thread(() -> transfer(ziploq, buffer), "ziploq-stream-worker").start(); //spawn on terminal op call instead?
         return Splitr.stream(() -> takeFrom(buffer), Ziploq.getEndSignal(), ziploq.getComparator());
     }
     
     
-    private static <T> void transfer(Ziploq<T> ziploq, SpscSyncQueue<T> buffer) {
+    private static <T> void transfer(Ziploq<T> ziploq, SyncQueue<T> buffer) {
         try {
             Entry<T> entry;
             while ((entry = ziploq.take()) != Ziploq.getEndSignal()) {
@@ -61,7 +61,7 @@ public final class AdvancedZiploq {
         }
     }
     
-    private static <T> Entry<T> takeFrom(SpscSyncQueue<T> buffer) throws InterruptedException {
+    private static <T> Entry<T> takeFrom(SyncQueue<T> buffer) throws InterruptedException {
         int attempt = 1;
         Entry<T> entry;
         while ((entry = buffer.poll()) == null) {

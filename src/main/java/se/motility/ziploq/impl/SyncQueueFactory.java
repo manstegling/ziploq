@@ -8,13 +8,13 @@ package se.motility.ziploq.impl;
 import java.util.Comparator;
 
 /**
- * Factory for creating instances of {@link SpscSyncQueue} 
+ * Factory for creating instances of {@link SyncQueue}
  * to use in e.g. {@link ZiploqImpl} 
  * 
  * @author M Tegling
  *
  */
-public interface SpscSyncQueueFactory {
+public interface SyncQueueFactory {
     
     /**
      * Property for how queues handle capacity restrictions
@@ -27,7 +27,7 @@ public interface SpscSyncQueueFactory {
     }
     
     /**
-     * Factory method for creating a {@link SpscSyncQueue} for unordered input
+     * Factory method for creating a {@link SyncQueue} for unordered input
      * @param businessDelay maximum business time delay allowed for new messages, compared
      * to previous messages. Must not be greater than {@code systemDelay}.
      * @param systemDelay maximum amount of <i>system time</i> (wall-clock time; provided by
@@ -40,9 +40,9 @@ public interface SpscSyncQueueFactory {
      * @param comparator to use if multiple messages have the exact same business
      * timestamp. If {@code null} is provided, no ordering is imposed on ties.
      * @param <E> message type
-     * @return {@code SpscSyncQueue} to use with unordered input
+     * @return {@code SyncQueue} to use with unordered input
      */
-    static <E> SpscSyncQueue<E> createUnordered(long businessDelay, long systemDelay,
+    static <E> SyncQueue<E> createUnordered(long businessDelay, long systemDelay,
             int softCapacity, CapacityType capacityType, Comparator<E> comparator) {
         ArgChecker.validateLong(businessDelay, 0, false, "businessDelay");
         ArgChecker.validateLong(businessDelay, systemDelay, true, "businessDelay");
@@ -55,13 +55,13 @@ public interface SpscSyncQueueFactory {
     }
     
     /**
-     * Factory method for creating a {@link SpscSyncQueue} for ordered input
+     * Factory method for creating a {@link SyncQueue} for ordered input
      * @param capacity of the queue; rounded up to the next power of 2 (if not already power of 2) 
      * @param capacityType of the queue ({@link CapacityType#BOUNDED}/{@link CapacityType#UNBOUNDED})
      * @param <E> message type
-     * @return {@code SpscSyncQueue} to use with ordered input
+     * @return {@code SyncQueue} to use with ordered input
      */
-    static <E> SpscSyncQueue<E> createOrdered(int capacity, CapacityType capacityType) {
+    static <E> SyncQueue<E> createOrdered(int capacity, CapacityType capacityType) {
         ArgChecker.validateLong(capacity, 1, false, "capacity");
         ArgChecker.notNull(capacityType, "capacityType");
         return capacityType == CapacityType.UNBOUNDED

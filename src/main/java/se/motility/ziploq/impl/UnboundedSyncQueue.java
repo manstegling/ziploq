@@ -23,30 +23,30 @@ import se.motility.ziploq.api.Entry;
  * @author M Tegling
  *
  * @param <E> message type
- * @see SpscSyncQueue
+ * @see SyncQueue
  */
-public class UnboundedSyncQueue<E> implements SpscSyncQueue<E> {
+public class UnboundedSyncQueue<E> implements SyncQueue<E> {
 
     private static final int MASK = 127;
     
-    private final SpscSyncQueue<E> delegate;
+    private final SyncQueue<E> delegate;
     private final int desiredCapacity;
     
     private int counter = 0;
     
     static <T> UnboundedSyncQueue<T> orderedSyncQueue(int capacity) {
-        SpscSyncQueue<T> queue = new OrderedSyncQueue<>(0); //unbounded
+        SyncQueue<T> queue = new OrderedSyncQueue<>(0); //unbounded
         return new UnboundedSyncQueue<>(queue, capacity);
     }
     
     static <T> UnboundedSyncQueue<T> unorderedSyncQueue(long businessDelay,
             long systemDelay, int capacity, Comparator<T> comparator) {
-        SpscSyncQueue<T> queue = new UnorderedSyncQueue<>(
+        SyncQueue<T> queue = new UnorderedSyncQueue<>(
                 businessDelay, systemDelay, Integer.MAX_VALUE, comparator);
         return new UnboundedSyncQueue<>(queue, capacity);
     }
     
-    private UnboundedSyncQueue(SpscSyncQueue<E> delegate, int capacity) {
+    private UnboundedSyncQueue(SyncQueue<E> delegate, int capacity) {
         this.delegate = delegate;
         this.desiredCapacity = capacity;
     }

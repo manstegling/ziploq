@@ -15,7 +15,7 @@ import se.motility.ziploq.api.RuntimeInterruptedException;
  *
  * @param <E> message type
  */
-public interface SpscSyncQueue<E> {
+public interface SyncQueue<E> {
     
     /**
      * Tries to enqueue provided {@link Entry} to the queue. If queue has no more

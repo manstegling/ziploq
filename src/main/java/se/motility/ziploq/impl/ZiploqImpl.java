@@ -21,7 +21,7 @@ import se.motility.ziploq.api.Entry;
 import se.motility.ziploq.api.FlowConsumer;
 import se.motility.ziploq.api.ZipFlow;
 import se.motility.ziploq.api.Ziploq;
-import se.motility.ziploq.impl.SpscSyncQueueFactory.CapacityType;
+import se.motility.ziploq.impl.SyncQueueFactory.CapacityType;
 
 /**
  * Lock-free implementation of {@link Ziploq} and {@link ZipFlow}.
@@ -127,7 +127,7 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
         }
         CapacityType type = strategy == BackPressureStrategy.UNBOUNDED ?
                 CapacityType.UNBOUNDED : CapacityType.BOUNDED;
-        SpscSyncQueue<T> queue = SpscSyncQueueFactory.createUnordered(
+        SyncQueue<T> queue = SyncQueueFactory.createUnordered(
                 businessDelay, systemDelay, softCapacity, type, effectiveCmp);
         return register(queue, false, strategy, sourceName);
     }
@@ -137,7 +137,7 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
             BackPressureStrategy strategy, String sourceName) {
         CapacityType type = strategy == BackPressureStrategy.UNBOUNDED ?
                 CapacityType.UNBOUNDED : CapacityType.BOUNDED;
-        SpscSyncQueue<T> queue = SpscSyncQueueFactory.createOrdered(capacity, type);
+        SyncQueue<T> queue = SyncQueueFactory.createOrdered(capacity, type);
         return register(queue, true, strategy, sourceName);
     }
     
@@ -146,7 +146,7 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
         return effectiveComparator;
     }
     
-    private <T extends E> FlowConsumer<T> register(SpscSyncQueue<T> queue,
+    private <T extends E> FlowConsumer<T> register(SyncQueue<T> queue,
             boolean ordered, BackPressureStrategy strategy, String name) {
         ArgChecker.notNull(strategy, "backPressureStrategy");
         FlowConsumerImpl<T> q = new FlowConsumerImpl<>(

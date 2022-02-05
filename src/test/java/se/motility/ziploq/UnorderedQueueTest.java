@@ -2,9 +2,9 @@ package se.motility.ziploq;
 
 import org.junit.Test;
 import se.motility.ziploq.SyncTestUtils.TestEntry;
-import se.motility.ziploq.impl.SpscSyncQueue;
-import se.motility.ziploq.impl.SpscSyncQueueFactory;
-import se.motility.ziploq.impl.SpscSyncQueueFactory.CapacityType;
+import se.motility.ziploq.impl.SyncQueue;
+import se.motility.ziploq.impl.SyncQueueFactory;
+import se.motility.ziploq.impl.SyncQueueFactory.CapacityType;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -17,25 +17,25 @@ public class UnorderedQueueTest {
     
     @Test(expected = IllegalArgumentException.class)
     public void negativeBusinessdelay() {
-        SpscSyncQueue<Object> q = SpscSyncQueueFactory.createUnordered(-1L, 0L, 10, CapacityType.BOUNDED, null);
+        SyncQueue<Object> q = SyncQueueFactory.createUnordered(-1L, 0L, 10, CapacityType.BOUNDED, null);
         assertNotNull(q);
     }
     
     @Test(expected = IllegalArgumentException.class)
     public void businessDelayHigherThanSystemDelay() {
-        SpscSyncQueue<Object> q = SpscSyncQueueFactory.createUnordered(1L, 0L, 10, CapacityType.BOUNDED, null);
+        SyncQueue<Object> q = SyncQueueFactory.createUnordered(1L, 0L, 10, CapacityType.BOUNDED, null);
         assertNotNull(q);
     }
     
     @Test(expected = IllegalArgumentException.class)
     public void nonPositiveCapacity() {
-        SpscSyncQueue<Object> q = SpscSyncQueueFactory.createUnordered(1L, 1L, 0, CapacityType.BOUNDED, null);
+        SyncQueue<Object> q = SyncQueueFactory.createUnordered(1L, 1L, 0, CapacityType.BOUNDED, null);
         assertNotNull(q);
     }
 
     @Test
     public void peek() {
-        SpscSyncQueue<MsgObject> q = SpscSyncQueueFactory.createUnordered(0L, 10L, 1, CapacityType.UNBOUNDED, null);
+        SyncQueue<MsgObject> q = SyncQueueFactory.createUnordered(0L, 10L, 1, CapacityType.UNBOUNDED, null);
         TestEntry e1 = new TestEntry(OBJECT_1, 0L, 0L, true);
         TestEntry e2 = new TestEntry(OBJECT_2, 1L, 0L, true);
         assertTrue(q.offer(e1));
@@ -50,7 +50,7 @@ public class UnorderedQueueTest {
     @Test
     public void boundedCapacity() {
         int capacity = 10;
-        SpscSyncQueue<MsgObject> q = SpscSyncQueueFactory.createUnordered(0L, 10L, capacity, CapacityType.BOUNDED, null);
+        SyncQueue<MsgObject> q = SyncQueueFactory.createUnordered(0L, 10L, capacity, CapacityType.BOUNDED, null);
         assertEquals(capacity, q.remainingCapacity());
         
         //Insert 'capacity + 1' messages (all are accepted due to "softCapacity" nature of unordered queues)
@@ -79,7 +79,7 @@ public class UnorderedQueueTest {
     @Test
     public void unboundedCapacity() {
         int capacity = 127; //<-- Magic number matching the granularity of capacity checks in unbounded queues (128 when including 1 staged)
-        SpscSyncQueue<MsgObject> q = SpscSyncQueueFactory.createUnordered(0L, 10L, capacity, CapacityType.UNBOUNDED, null);
+        SyncQueue<MsgObject> q = SyncQueueFactory.createUnordered(0L, 10L, capacity, CapacityType.UNBOUNDED, null);
         assertEquals(capacity, q.remainingCapacity());
         
         //Insert 'capacity + 1' messages (all are accepted due to "softCapacity" nature of unordered queues)

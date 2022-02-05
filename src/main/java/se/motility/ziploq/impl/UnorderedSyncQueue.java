@@ -9,7 +9,7 @@ import java.util.Comparator;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
-import org.jctools.queues.SpscLinkedQueue;
+import org.jctools.queues.MpscLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,9 +25,9 @@ import se.motility.ziploq.api.RuntimeInterruptedException;
  * @author M Tegling
  *
  * @param <E> message type
- * @see SpscSyncQueue
+ * @see SyncQueue
  */
-public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
+public class UnorderedSyncQueue<E> implements SyncQueue<E> {
     
     private static final long ONE_MILLISECOND = 1_000_000L; //throughput ~ capacity x 1000 events/s
     private final Comparator<Entry<E>> comparator = Comparator.comparingLong(Entry::getBusinessTs);
@@ -49,7 +49,7 @@ public class UnorderedSyncQueue<E> implements SpscSyncQueue<E> {
                 ? this.comparator.thenComparing(Entry::getMessage, comparator)
                 : this.comparator;
         this.staging = new PriorityQueue<>(cmp);
-        this.ready = new SpscLinkedQueue<>(); //unbounded
+        this.ready = new MpscLinkedQueue<>(); //unbounded
         this.businessDelay = businessDelay;
         this.systemDelay = systemDelay;
         this.softCapacity = softCapacity;
