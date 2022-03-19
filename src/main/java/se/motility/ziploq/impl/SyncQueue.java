@@ -9,7 +9,7 @@ import se.motility.ziploq.api.Entry;
 import se.motility.ziploq.api.RuntimeInterruptedException;
 
 /**
- * Single-producer, single-consumer queue interface used in implementation
+ * Multi-producer, single-consumer queue interface used in implementation
  * 
  * @author M Tegling
  *
