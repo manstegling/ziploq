@@ -5,8 +5,6 @@
  */
 package se.motility.ziploq.impl;
 
-import java.util.Queue;
-
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscArrayQueue;
 import org.jctools.queues.MpscLinkedQueue;
@@ -29,15 +27,14 @@ public class OrderedSyncQueue<E> implements SyncQueue<E> {
     private static final long ONE_MILLISECOND = 1_000_000L; //throughput ~ capacity x 1000 events/s
     private static final Logger LOG = LoggerFactory.getLogger(OrderedSyncQueue.class);
     
-    private final Queue<Entry<E>> ready;
+    private final MessagePassingQueue<Entry<E>> ready;
     private final int capacity;
     
     private long lastTs = 0;
     
     OrderedSyncQueue(int capacity) {
         this.ready = capacity > 0 ? new MpscArrayQueue<>(capacity) : new MpscLinkedQueue<>();
-        this.capacity = ready instanceof MessagePassingQueue ? //retrieve actual capacity (power of 2)
-            ((MessagePassingQueue<?>) ready).capacity() : capacity;
+        this.capacity = ready.capacity(); //retrieve actual capacity (power of 2)
     }
 
     @Override
