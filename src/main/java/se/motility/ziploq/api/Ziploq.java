@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 Måns Tegling
+ * Copyright (c) 2018-2023 Måns Tegling
  * 
  * Use of this source code is governed by the MIT license that can be found in the LICENSE file.
  */
@@ -8,9 +8,6 @@ package se.motility.ziploq.api;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.function.ToLongFunction;
-import java.util.stream.Stream;
-
-import se.motility.ziploq.impl.Splitr;
 
 /**
  * A device for synchronizing and sequencing messages from any number of input sources.
@@ -41,7 +38,7 @@ import se.motility.ziploq.impl.Splitr;
  *
  * @param <E> message type
  */
-public interface Ziploq<E> {
+public interface Ziploq<E> extends Zipq<E> {
     
     /**
      * Returns a special marker {@code Entry} indicating that all consumers have been
@@ -64,41 +61,6 @@ public interface Ziploq<E> {
     static <T> Entry<T> getEndSignal() {
         return (Entry<T>) END_SIGNAL;
     }
-    
-    /**
-     * Returns a {@code Stream} consisting of synchronized messages. The length of this
-     * {@code Stream} is undefined; messages will be provided until all associated
-     * {@link SynchronizedConsumer} instances have completed. Until completed, the stream
-     * will <i>block</i> the thread when awaiting new messages to emit.
-     * <p>
-     * Use this method to build a data pipeline with backpressure based on synchronized messages.
-     * @return {@code Stream} consisting of synchronized messages
-     * @throws RuntimeInterruptedException if thread is interrupted during wait
-     */
-    default Stream<Entry<E>> stream() {
-        return Splitr.stream(this::take, getEndSignal(), getComparator());
-    }
-    
-    /**
-     * Retrieves synchronized message. Waits if necessary for a message to become available.
-     * After all associated {@link SynchronizedConsumer} instances have completed and all messages
-     * have been taken, a special end marker entry is emitted (see {@link #getEndSignal}).
-     * @return a synchronized message wrapped in an {@link Entry}
-     * @throws InterruptedException if thread is interrupted during wait
-     */
-    Entry<E> take() throws InterruptedException;
-    
-    /**
-     * Retrieves synchronized message. This method will return immediately even if no message is
-     * available. After all associated {@link SynchronizedConsumer} instances have completed and
-     * all messages have been taken, a special end marker entry is emitted (see {@link #getEndSignal}).
-     * <p>
-     * <i>Note:</i> If dropping messages is not allowed; rather than calling this method
-     * in a busy-spin fashion, use method {@link #take()}. Repeatedly calling
-     * this method may cause thread contention.
-     * @return a synchronized message wrapped in an {@link Entry}
-     */
-    Entry<E> poll();
     
     /**
      * Registers the provided <i>ordered</i> in-memory dataset to be synchronized.
@@ -158,13 +120,6 @@ public interface Ziploq<E> {
      */
     <T extends E> SynchronizedConsumer<T> registerOrdered(
                 int capacity, BackPressureStrategy strategy, String sourceName);
- 
-    /**
-     * Returns the effective {@code Comparator} used for sequencing messages from the associated
-     * {@link SynchronizedConsumer} instances.
-     * @return effective comparator used to sequence input data
-     */
-    Comparator<Entry<E>> getComparator();
     
     /**
      * The end marker {@code Entry}. This {@code Entry} is immutable and serializable.

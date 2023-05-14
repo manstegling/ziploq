@@ -1,12 +1,16 @@
 /*
- * Copyright (c) 2018-2019 Måns Tegling
+ * Copyright (c) 2018-2023 Måns Tegling
  * 
  * Use of this source code is governed by the MIT license that can be found in the LICENSE file.
  */
 package se.motility.ziploq.api;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 
+import se.motility.ziploq.impl.Job;
+import se.motility.ziploq.impl.JobScheduler;
 import se.motility.ziploq.impl.ZiploqImpl;
 
 /**
@@ -59,5 +63,154 @@ public interface ZiploqFactory {
     static <E> Ziploq<E> create(Comparator<E> comparator) {
         return new ZiploqImpl<>(0, comparator);
     }
-    
+
+    /**
+     *
+     * @param comparator
+     * @param <E>
+     * @return
+     */
+    static <E> ManagedZiploqBuilder<E> managedZiploqBuilder(Comparator<E> comparator) {
+        return new ManagedZiploqBuilder<>(comparator);
+    }
+
+    /**
+     *
+     * @param systemDelay
+     * @param comparator
+     * @param <E>
+     * @return
+     */
+    static <E> ManagedZipFlowBuilder<E> managedZipFlowBuilder(long systemDelay, Comparator<E> comparator) {
+        if(systemDelay <= 0) {
+            throw new IllegalArgumentException("System delay must greater than 0. Provided value was " + systemDelay);
+        }
+        return new ManagedZipFlowBuilder<>(systemDelay, comparator);
+    }
+
+    /**
+     *
+     * @param <E>
+     */
+    class ManagedZipFlowBuilder<E> extends Builder<E, ManagedZipFlowBuilder<E>> {
+
+        ManagedZipFlowBuilder(long systemDelay, Comparator<E> comparator) {
+            super(systemDelay, comparator);
+        }
+
+        @Override
+        ManagedZipFlowBuilder<E> getThis() {
+            return this;
+        }
+
+        public <T extends E> ManagedZipFlowBuilder<E> registerUnordered(
+                FlowSource<T> source, long businessDelay, int softCapacity,
+                String sourceName, Comparator<T> comparator) {
+            FlowConsumer<T> consumer = ziploq.registerUnordered(businessDelay,
+                    softCapacity, BackPressureStrategy.DROP, sourceName, comparator);
+            addJob(Job.create(source, consumer, true));
+            return this;
+        }
+
+        public <T extends E> ManagedZipFlowBuilder<E> registerOrdered(
+                FlowSource<T> source, int capacity, String sourceName) {
+            FlowConsumer<T> consumer = ziploq.registerOrdered(capacity, BackPressureStrategy.DROP, sourceName);
+            addJob(Job.create(source, consumer, true));
+            return this;
+        }
+
+    }
+
+    /**
+     *
+     * @param <E>
+     */
+    class ManagedZiploqBuilder<E> extends Builder<E, ManagedZiploqBuilder<E>> {
+
+        ManagedZiploqBuilder(Comparator<E> comparator) {
+            super(0L, comparator);
+        }
+
+        @Override
+        ManagedZiploqBuilder<E> getThis() {
+            return this;
+        }
+
+        public <T extends E> ManagedZiploqBuilder<E> registerUnordered(
+                Source<T> source, long businessDelay, int softCapacity,
+                String sourceName, Comparator<T> comparator) {
+            FlowConsumer<T> consumer = ziploq.registerUnordered(businessDelay,
+                    softCapacity, BackPressureStrategy.DROP, sourceName, comparator);
+            addJob(Job.create(wrap(source), consumer, false));
+            return this;
+        }
+
+        public <T extends E> ManagedZiploqBuilder<E> registerOrdered(
+                Source<T> source, int capacity, String sourceName) {
+            FlowConsumer<T> consumer = ziploq.registerOrdered(capacity, BackPressureStrategy.DROP, sourceName);
+            addJob(Job.create(wrap(source), consumer, false));
+            return this;
+        }
+        
+        private static <T> FlowSource<T> wrap(Source<T> source) {
+            return new FlowSource<T>() {
+                @Override
+                public long getSystemTs() {
+                    return -1L;
+                }
+                @Override
+                public Entry<T> emit() {
+                    BasicEntry<T> e = source.emit();
+                    return e == Ziploq.getEndSignal() ? (Entry<T>) e : new BasicEntryWrapper<>(e);
+                }
+            };
+        }
+    }
+
+    abstract class Builder<E, B extends Builder<E, B>> {
+        private final List<Job> jobs = new ArrayList<>();
+        final ZipFlow<E> ziploq;
+        private int poolSize = 3;
+
+        public Builder(long systemDelay, Comparator<E> comparator) {
+            this.ziploq = new ZiploqImpl<>(systemDelay, comparator);
+        }
+
+        public B setPoolSize(int poolSize) {
+            this.poolSize = poolSize;
+            return getThis();
+        }
+
+        public Zipq<E> create() {
+            JobScheduler scheduler3 = new JobScheduler(poolSize, jobs);
+            scheduler3.start();
+            return ziploq;
+        }
+
+        abstract B getThis();
+
+        void addJob(Job job) {
+            jobs.add(job);
+        }
+    }
+
+    class BasicEntryWrapper<T> implements Entry<T> {
+        private final BasicEntry<T> entry;
+        BasicEntryWrapper(BasicEntry<T> entry) {
+            this.entry = entry;
+        }
+        @Override
+        public T getMessage() {
+            return entry.getMessage();
+        }
+        @Override
+        public long getBusinessTs() {
+            return entry.getBusinessTs();
+        }
+        @Override
+        public long getSystemTs() {
+            return -1L;
+        }
+    }
+
 }

@@ -3,6 +3,7 @@ package se.motility.ziploq;
 import static org.junit.Assert.*;
 
 import java.util.Comparator;
+import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -44,7 +45,15 @@ public class SyncTestUtils {
         assertEquals(expected.getBusinessTs(), actual.getBusinessTs());
         assertEquals(expected.getSystemTs(), actual.getSystemTs());
     }
-    
+
+    public static TestEntry consume(Queue<TestEntry> q, MsgObject obj, long businessTs, long systemTs) {
+        TestEntry e = new TestEntry(obj, businessTs, systemTs, true);
+        if (!q.add(e)) {
+            throw new IllegalStateException("Could not add obj " + obj + " to queue @ " + businessTs);
+        }
+        return e;
+    }
+
     public static TestEntry consume(FlowConsumer<MsgObject> consumer, MsgObject obj, long businessTs, long systemTs) {
         boolean accepted = consumer.onEvent(obj, businessTs, systemTs);
         return new TestEntry(obj, businessTs, systemTs, accepted);

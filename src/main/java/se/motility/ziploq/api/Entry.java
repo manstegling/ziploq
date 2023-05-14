@@ -5,8 +5,6 @@
  */
 package se.motility.ziploq.api;
 
-import java.io.Serializable;
-
 /**
  * Container for message having an associated <i>business timestamp</i>
  * and <i>system timestamp</i>.
@@ -18,19 +16,7 @@ import java.io.Serializable;
  *
  * @param <T> message type
  */
-public interface Entry<T> extends Serializable {
-
-    /**
-     * Returns the message associated with this entry.
-     * @return the message associated with this entry.
-     */
-    T getMessage();
-    
-    /**
-     * Returns the business timestamp (epoch) associated with this entry.
-     * @return the business timestamp (epoch) associated with this entry.
-     */
-    long getBusinessTs();
+public interface Entry<T> extends BasicEntry<T> {
 
     /**
      * Returns the system timestamp (epoch) associated with this entry.
