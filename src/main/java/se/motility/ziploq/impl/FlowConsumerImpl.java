@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 Måns Tegling
+ * Copyright (c) 2018-2022 Måns Tegling
  * 
  * Use of this source code is governed by the MIT license that can be found in the LICENSE file.
  */
@@ -43,8 +43,6 @@ public class FlowConsumerImpl<T> implements FlowConsumer<T> {
     private volatile long graceExpiry   = 0L;
     private volatile long lastSystem    = 0L; //start from 0 to prevent underflow
     
-    private boolean inHeads = false; //only ever modified by Ziploq output thread
-    
     FlowConsumerImpl(SyncQueue<T> queue, long systemDelay,
             BackPressureStrategy strategy, Runnable signalUpdate, String name) {
         this.queue = queue;
@@ -52,14 +50,6 @@ public class FlowConsumerImpl<T> implements FlowConsumer<T> {
         this.strategy = strategy;
         this.systemDelay = systemDelay;
         this.signalUpdate = signalUpdate;
-    }
-
-    boolean isInHeads() {
-        return inHeads;
-    }
-
-    void setInHeads(boolean inHeads) {
-        this.inHeads = inHeads;
     }
     
     long getSystemTs() {

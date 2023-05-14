@@ -1,12 +1,14 @@
 /*
- * Copyright (c) 2018-2019 Måns Tegling
- * 
+ * Copyright (c) 2018-2022 Måns Tegling
+ *
  * Use of this source code is governed by the MIT license that can be found in the LICENSE file.
  */
 package se.motility.ziploq.impl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
@@ -61,13 +63,14 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
     private static final boolean COMPARATOR_COMPLIANT = Boolean.getBoolean("ziploq.log.comparator_compliant");
     private static final long WAIT_TIMEOUT = Long.getLong("ziploq.log.wait_timeout", 120_000L);
     private static final Logger LOG = LoggerFactory.getLogger(ZiploqImpl.class);
-    
+
     @SuppressWarnings("rawtypes")
     private static final EntryImpl OUT_OF_SYNC = new EntryImpl<>(null, -1, -1, null);
 
     private final List<FlowConsumerImpl<? extends E>> queues = new ArrayList<>();
-    private final Queue<FlowConsumerImpl<? extends E>> updQueues = new ConcurrentLinkedQueue<>();    
-    
+    private final Queue<FlowConsumerImpl<? extends E>> updQueues = new ConcurrentLinkedQueue<>();
+
+    private final UnorderedCollection<FlowConsumerImpl<? extends E>> outsideHeads = new UnorderedCollection<>();
     private final PriorityQueue<EntryImpl<E>> heads;
     private final long systemDelay;
     private final Comparator<Entry<E>> effectiveComparator;
@@ -79,6 +82,7 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
     private long systemTs = 0L;  //start from 0 to prevent underflow
     private EntryImpl<E> previous;
     private long lastLoggedWait;
+    private final int[] delayStats = new int[8];
     
     public ZiploqImpl(long systemDelay, Comparator<E> comparator) {
         Comparator<Entry<E>> primaryCmp = Comparator.comparingLong(Entry::getBusinessTs);
@@ -95,9 +99,15 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
         Entry<E> entry;
         while((entry = dequeue()) == null) {
             if(complete) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Delay stats: {}", Arrays.toString(delayStats));
+                }
                 return Ziploq.getEndSignal();
             } else if (Thread.interrupted()) {
                 throw new InterruptedException("Thread interrupted.");
+            }
+            if (LOG.isDebugEnabled()) {
+                delayStats[Math.min(7, Math.max(0, attempt - 50))]++;
             }
             checkWait(attempt);
             WaitStrategy.backOffWait(attempt++);
@@ -145,6 +155,14 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
     public Comparator<Entry<E>> getComparator() {
         return effectiveComparator;
     }
+
+    /**
+     * Returns internal performance counters for debugging purposes
+     * @return internal performance counters
+     */
+    public int[] delayStats() {
+        return delayStats;
+    }
     
     private <T extends E> FlowConsumer<T> register(SyncQueue<T> queue,
             boolean ordered, BackPressureStrategy strategy, String name) {
@@ -168,10 +186,10 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
             updateQueues();
             updateHeads();
             EntryImpl<E> ready = pollReadyMsg();
-            if(ready == OUT_OF_SYNC) {
+            if (ready == OUT_OF_SYNC) {
                 //perform one more cycle
             } else if (ready != null) {
-                ready.getQueueRef().setInHeads(false);
+                outsideHeads.add(ready.getQueueRef());
                 checkMessageOrder(ready);
                 return ready;
             } else {
@@ -186,6 +204,7 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
             FlowConsumerImpl<? extends E> q;
             while((q = updQueues.poll()) != null) {
                 queues.add(q);
+                outsideHeads.add(q);
             }
             dirtySystemTs = true;
         }
@@ -193,22 +212,22 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
 
     private void updateHeads() {
         int deregister = 0;
-        for (int i = 0; i < queues.size(); i++) {
-            FlowConsumerImpl<? extends E> queue = queues.get(i);
+        Iterator<FlowConsumerImpl<? extends E>> iter = outsideHeads.iterator();
+        FlowConsumerImpl<? extends E> queue;
+        while (iter.hasNext()) {
+            queue = iter.next();
             queue.setCheckpoint();
-            if (!queue.isInHeads()) {
-                EntryImpl<E> polled = queue.poll();
-                if (polled != null) {
-                    heads.offer(polled); //always true
-                    queue.setInHeads(true);
-                } else if (queue.isComplete()) {
-                    deregister++;
-                }
+            EntryImpl<E> polled = queue.poll();
+            if (polled != null) {
+                heads.offer(polled); //always true
+                iter.remove();
+            } else if (queue.isComplete()) {
+                deregister++;
             }
         }
         if (deregister > 0) {
             queues.removeIf(q -> {
-                if (!q.isInHeads() && q.isComplete()) {
+                if (q.isComplete() && outsideHeads.remove(q)) {
                     LOG.info("De-registering completed consumer with ID '{}'.",
                             q.getId());
                     return true;
@@ -259,7 +278,12 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
             if (q.getSystemTs() < ts2Update) {
                 ts2Update = q.getSystemTs();
             }
-            if(!q.verifyCheckpoint()) {
+        }
+        Iterator<FlowConsumerImpl<? extends E>> iter = outsideHeads.iterator();
+        FlowConsumerImpl<? extends E> q;
+        while (iter.hasNext()) {
+            q = iter.next();
+            if (!q.verifyCheckpoint()) {
                 return false;
             }
         }
@@ -274,8 +298,7 @@ public class ZiploqImpl<E> implements ZipFlow<E> {
             long now = System.currentTimeMillis();
             if (now - lastLoggedWait > WAIT_TIMEOUT) {
                 lastLoggedWait = now;
-                List<String> emptySources = queues.stream()
-                        .filter(q -> !q.isInHeads())
+                List<String> emptySources = outsideHeads.stream()
                         .map(FlowConsumerImpl::getId)
                         .sorted()
                         .collect(Collectors.toList());
