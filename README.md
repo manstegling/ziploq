@@ -11,14 +11,14 @@ out-of-the-box, too!)
 
 Ziploq is built with infinite real-time data sequences in mind, but works just as well for in-memory datasets. This 
 design results in a low memory footprint and a high message throughput. With this lib, it's easy to set up pipelines 
-capable of handling tens of millions of transactions per second ("tps") on a regular desktop computer (i5 6600)!
+capable of handling millions of transactions per second ("tps") on a regular desktop computer (i5 6600)!
 
 For your convenience, Ziploq also provides simple strategies for handling backpressure on both Producer and Consumer 
 side.
 
 
-![Ziploq; merging input sources](https://raw.githubusercontent.com/manstegling/ziploq/master/images/ziploq.png)
-_Merging 3 different types of data sources_
+![Ziploq; merging input sources](https://raw.githubusercontent.com/manstegling/ziploq/master/images/2023-05-14-ziploq.png)
+*Image showing merging of 3 data sources using Ziploq. The output is ordered even though some of the input isn't.*
 
 ### Using Ziploq
 
