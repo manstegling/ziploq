@@ -10,6 +10,7 @@ import java.util.Queue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -45,7 +46,7 @@ public class JobScheduler {
 
     /** Global executor for scheduling jobs in cooldown */
     private static final ScheduledExecutorService COOLDOWN_EXECUTOR =
-            Executors.newScheduledThreadPool(1, new JobScheduler20.CooldownThreadFactory());
+            Executors.newScheduledThreadPool(1, new CooldownThreadFactory());
 
     private static final int RETRIES = Integer.getInteger("ziploq.dev.retries", 20);
     private static final AtomicInteger COUNTER = new AtomicInteger();
@@ -194,6 +195,16 @@ public class JobScheduler {
 
         public JobContext(Job job) {
             this.job = job;
+        }
+    }
+
+    public static class CooldownThreadFactory implements ThreadFactory {
+        private final AtomicInteger threadNumber = new AtomicInteger();
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r, "JobScheduler-cooldown-" + threadNumber.incrementAndGet());
+            t.setDaemon(true);
+            return t;
         }
     }
 
