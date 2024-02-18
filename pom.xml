@@ -3,7 +3,7 @@
   
   <groupId>se.motility</groupId>
   <artifactId>ziploq</artifactId>
-  <version>3.0-SNAPSHOT</version>
+  <version>3.0-managed-ziploq-SNAPSHOT</version>
   <name>Ziploq</name>
   <description>
     A high-throughput device for merging and sequencing messages from any number of input sources
