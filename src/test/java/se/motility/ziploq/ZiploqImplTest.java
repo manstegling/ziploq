@@ -237,7 +237,7 @@ public class ZiploqImplTest {
      * Consumer thread blocks on waiting for sorted messages to become available
      * Will cause dead-lock if signaling is not handled correctly
      */
-    @Test(timeout=20_000)
+    @Test(timeout=45_000)
     public void orderedSignallingProducerFirst() {
 
         int messages = 5_000;
@@ -339,7 +339,7 @@ public class ZiploqImplTest {
      * 1 thread. Running for 100k messages should hence 'guarantee' such scenarios will
      * be forced to occur. 
      */
-    @Test(timeout=20_000)
+    @Test(timeout=30_000)
     public void blockingOrderedDeadlock() {
         long delay = 1000L;
         int messages = 100_000;

@@ -11,8 +11,8 @@ import java.util.stream.Stream;
 import se.motility.ziploq.impl.Splitr;
 
 /**
- * The output side of Ziploq, i.e. an interface for retrieving the synchronized
- * stream of data. The interaction patterns are similar to a regular Queue.
+ * The Ziploq core; an interface for retrieving the synchronized stream of data. The interaction patterns are familiar
+ * to your regular Queue.
  * <p>
  * There are three methods for retrieving sequenced messages from this device; {@link #stream},
  * {@link #take} and {@link #poll}. For normal data processing purposes, building data pipelines

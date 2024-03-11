@@ -6,13 +6,14 @@
 package se.motility.ziploq.api;
 
 /**
- * A formulation of the input source such that managed thread can retrieve new entries when they wish.
+ * A formulation of the input source such that managed threads can retrieve new entries when suitable.
  * Even though there might be different threads accessing consecutive entries, all necessary memory
- * visibility guarantees, etc. are in place to don't worry about thread-safety. Only beware that
+ * visibility guarantees, etc. are in place, so don't worry about thread-safety. Only beware that
  * ThreadLocals won't work.
- * @param <E> message type
  *
  * @author M Tegling
+ *
+ * @param <E> message type
  */
 public interface Source<E> {
 

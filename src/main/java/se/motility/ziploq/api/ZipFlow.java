@@ -91,6 +91,7 @@ public interface ZipFlow<E> extends Ziploq<E> {
      * BackPressureStrategy#DROP}) when queues are full or if producer threads should have to
      * wait ({@link BackPressureStrategy#BLOCK}). There's also an option to use unbounded buffers
      * ({@link BackPressureStrategy#UNBOUNDED}).
+     * @param sourceName to be associated with this input source
      * @param <T> message type; must be a subclass of the synchronized type
      * @return {@link FlowConsumer} to feed the input data into
      */
