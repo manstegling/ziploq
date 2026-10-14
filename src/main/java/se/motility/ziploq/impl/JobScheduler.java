@@ -22,24 +22,24 @@ import org.slf4j.LoggerFactory;
 /**
  * A distributed job scheduler executing work on a fixed thread pool.
  * <p>
- * Each job is executed locally on a thread until there's either no more work available,
- * or the downstream buffers are full. At that point the job is rescheduled. If the job
- * cannot proceed for {@link #RETRIES} times, it will be put into cooldown.
+ * Each job is executed locally on a thread until there's either no more work available
+ * {@link Job.State#WAITING}, or the downstream buffers are full {@link Job.State#BLOCKED}.
+ * At that point the job is being rescheduled.
  * <p>
- * The scheduler maintains a central thread rescheduling jobs in cooldown at a fixed interval,
- * meaning that the upper bound for cooldown is 1ms (plus OS stalls, jitter, etc.).
+ * Upon WAITING, a number of retries are made to immediately catch any new work. After
+ * {@link #RETRIES} times, the Job is put into cooldown. The scheduler maintains a central
+ * thread rescheduling jobs in cooldown at a fixed interval, meaning that the upper bound
+ * for cooldown is 1ms (plus OS stalls, jitter, etc.).
+ * <p>
+ * Upon BLOCKING, the Job is parked until a significant number of events has been successfully
+ * drained from the associated work queue. Then, the Job is resumed since there's now sufficient
+ * capacity to meaningfully fill again. This is an efficient event-driven back-pressure mechanism.
  * <p>
  * Jobs are being selected fairly, except that jobs in cooldown are not available for selection.
+ * Worker threads are put to (short) sleep if all buffers are full, to minimize thrashing and
+ * wasting CPU.
  *
  * @author M Tegling
- *
- * @implNote This is the best candidate: it's simple and provides a good abstraction.
- * It performs on par with the other schedulers, better when tweaked. The tweaking is
- * the only pain point. The worker threads quickly build contention (on the queues)
- * when they have spare bandwidth, leading to lower throughput. We need to more
- * aggressively throttle/sleep threads that are "excessive".
- * TODO: How to detect this??
- * TODO: Doesn't seem to be directly related to RETRIES? Is this the correct diagnosis?
  *
  */
 public class JobScheduler {
@@ -81,9 +81,9 @@ public class JobScheduler {
         return workerThreads;
     }
 
-    private Queue<JobContext> createJobQueue(List<Job> jobs) {
+    private static Queue<JobContext> createJobQueue(List<Job> jobs) {
         Queue<JobContext> jobQueue = new MpmcArrayQueue<>(jobs.size());
-        jobs.forEach(job -> sanityCheck(jobQueue.offer(new JobContext(job))));
+        jobs.forEach(job -> sanityCheck(jobQueue.offer(new JobContext(job, jobQueue))));
         return jobQueue;
     }
 
@@ -113,12 +113,14 @@ public class JobScheduler {
                 processed++;
             }
             context.processedStats[getIdx(processed)]++;
+            context.cycles++;
 
             // Handle batch end state accordingly
-            if (state == Job.State.WAITING || state == Job.State.BLOCKED) {
+            if (state == Job.State.BLOCKED) {
+                context.job.requestNotifyOnDrain(context.resume);
+            } else if (state == Job.State.WAITING) {
                 int attempt = context.attempts++;
                 context.delayStats[attempt < RETRIES ? 0 : 1]++;
-                context.cycles++;
                 if (attempt > RETRIES) {
                     sanityCheck(cooldown.offer(context));
                 } else {
@@ -190,11 +192,13 @@ public class JobScheduler {
         private final int[] delayStats = new int[2];
         private final int[] processedStats = new int[8];
         private final Job job;
+        private final Runnable resume;
         private int attempts = 0;
         private long cycles = 0L;
 
-        public JobContext(Job job) {
+        public JobContext(Job job, Queue<JobContext> queue) {
             this.job = job;
+            this.resume = () -> sanityCheck(queue.offer(this));
         }
     }
 

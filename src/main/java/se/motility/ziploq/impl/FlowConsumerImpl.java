@@ -24,7 +24,7 @@ import se.motility.ziploq.api.FlowConsumer;
  *
  * @param <T> message type
  */
-public class FlowConsumerImpl<T> implements FlowConsumer<T> {
+public class FlowConsumerImpl<T> implements FlowConsumer<T>, DrainNotifier {
     
     protected static final long END = Long.MAX_VALUE;
     
@@ -36,13 +36,19 @@ public class FlowConsumerImpl<T> implements FlowConsumer<T> {
     private final BackPressureStrategy strategy;
     private final long systemDelay;
     private final Runnable signalUpdate;
-    
+    private final int drainNotificationThreshold;
+
     private volatile boolean isComplete = false;
     private volatile boolean hasChanged = false;
     private volatile long system        = 0L;
     private volatile long graceExpiry   = 0L;
     private volatile long lastSystem    = 0L; //start from 0 to prevent underflow
-    
+    @SuppressWarnings("java:S3077") //enables communications between threads, no visibility issues here
+    private volatile Runnable drainNotificationAction;
+
+    //Only ever accessed by a single thread (Ziploq consumer thread)
+    private int drainedSinceRequest;
+
     FlowConsumerImpl(SyncQueue<T> queue, long systemDelay,
             BackPressureStrategy strategy, Runnable signalUpdate, String name) {
         this.queue = queue;
@@ -50,6 +56,7 @@ public class FlowConsumerImpl<T> implements FlowConsumer<T> {
         this.strategy = strategy;
         this.systemDelay = systemDelay;
         this.signalUpdate = signalUpdate;
+        this.drainNotificationThreshold = Math.max(1, queue.remainingCapacity() / 4);
     }
     
     long getSystemTs() {
@@ -107,7 +114,19 @@ public class FlowConsumerImpl<T> implements FlowConsumer<T> {
     @SuppressWarnings("unchecked")
     <E> EntryImpl<E> poll() {
         //safe cast since EntryImpl is immutable
-        return (EntryImpl<E>) queue.poll();
+        EntryImpl<E> entry = (EntryImpl<E>) queue.poll();
+        Runnable action = drainNotificationAction;
+        if (action != null) {
+            if (entry != null) {
+                drainedSinceRequest++;
+            }
+            if (drainedSinceRequest >= drainNotificationThreshold || (entry == null && drainedSinceRequest > 0)) {
+                drainNotificationAction = null;
+                drainedSinceRequest = 0;
+                action.run(); //called last to prevent race
+            }
+        }
+        return entry;
     }
     
     @Override
@@ -131,7 +150,13 @@ public class FlowConsumerImpl<T> implements FlowConsumer<T> {
     public String getId() {
         return id;
     }
-    
+
+    @Override
+    public void requestNotification(Runnable action) {
+        this.drainedSinceRequest = 0;
+        this.drainNotificationAction = action;
+    }
+
     private void onEvent(long ts) {
         if (ts > system && ts >= graceExpiry) {
             hasChanged = true; //must come before write to 'system'
@@ -140,5 +165,6 @@ public class FlowConsumerImpl<T> implements FlowConsumer<T> {
         }
         lastSystem = ts;
     }
-    
+
+
 }

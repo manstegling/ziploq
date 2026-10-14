@@ -30,9 +30,11 @@ public class Job {
     }
 
     private final Supplier<State> callable;
+    private final DrainNotifier drainNotifier;
 
-    private Job(Supplier<State> callable) {
+    private Job(Supplier<State> callable, DrainNotifier drainNotifier) {
         this.callable = callable;
+        this.drainNotifier = drainNotifier;
     }
 
     public static <T> Job create(Source<T> source, SynchronizedConsumer<T> consumer) {
@@ -40,7 +42,7 @@ public class Job {
             throw new IllegalArgumentException("The scheduling framework requires a DROP-based consumer");
         }
         EntryContainer<T, BasicEntry<T>> entryContainer = new EntryContainer<>();
-        return new Job(() -> invocation(source, consumer, entryContainer));
+        return new Job(() -> invocation(source, consumer, entryContainer), asDrainNotifier(consumer));
     }
 
     public static <T> Job create(FlowSource<T> source, FlowConsumer<T> consumer) {
@@ -48,7 +50,7 @@ public class Job {
             throw new IllegalArgumentException("The scheduling framework requires a DROP-based consumer");
         }
         EntryContainer<T, Entry<T>> entryContainer = new EntryContainer<>();
-        return new Job(() -> invocation(source, consumer, entryContainer));
+        return new Job(() -> invocation(source, consumer, entryContainer), asDrainNotifier(consumer));
     }
 
     private static <T> State invocation(
@@ -96,8 +98,19 @@ public class Job {
         }
     }
 
+    private static <T> DrainNotifier asDrainNotifier(SynchronizedConsumer<T> consumer) {
+        if (consumer instanceof DrainNotifier) {
+            return (DrainNotifier) consumer;
+        }
+        throw new IllegalArgumentException("Managed Ziploq requires DrainNotifier consumer not " + consumer.getClass());
+    }
+
     public State invoke() {
         return callable.get();
+    }
+
+    public void requestNotifyOnDrain(Runnable action) {
+        drainNotifier.requestNotification(action);
     }
 
     private static class EntryContainer<T, E extends BasicEntry<T>> {
