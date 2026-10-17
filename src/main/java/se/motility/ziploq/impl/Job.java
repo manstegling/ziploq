@@ -31,26 +31,32 @@ public class Job {
 
     private final Supplier<State> callable;
     private final DrainNotifier drainNotifier;
+    private final String sourceName;
+    private final String consumerId;
 
-    private Job(Supplier<State> callable, DrainNotifier drainNotifier) {
+    private Job(Supplier<State> callable, DrainNotifier drainNotifier, String sourceName, String consumerId) {
         this.callable = callable;
         this.drainNotifier = drainNotifier;
+        this.sourceName = sourceName;
+        this.consumerId = consumerId;
     }
 
-    public static <T> Job create(Source<T> source, SynchronizedConsumer<T> consumer) {
+    public static <T> Job create(Source<T> source, SynchronizedConsumer<T> consumer, String sourceName) {
         if (consumer.getStrategy() != BackPressureStrategy.DROP) {
             throw new IllegalArgumentException("The scheduling framework requires a DROP-based consumer");
         }
         EntryContainer<T, BasicEntry<T>> entryContainer = new EntryContainer<>();
-        return new Job(() -> invocation(source, consumer, entryContainer), asDrainNotifier(consumer));
+        return new Job(() -> invocation(source, consumer, entryContainer), asDrainNotifier(consumer),
+                sourceName, consumer.getId());
     }
 
-    public static <T> Job create(FlowSource<T> source, FlowConsumer<T> consumer) {
+    public static <T> Job create(FlowSource<T> source, FlowConsumer<T> consumer, String sourceName) {
         if (consumer.getStrategy() != BackPressureStrategy.DROP) {
             throw new IllegalArgumentException("The scheduling framework requires a DROP-based consumer");
         }
         EntryContainer<T, Entry<T>> entryContainer = new EntryContainer<>();
-        return new Job(() -> invocation(source, consumer, entryContainer), asDrainNotifier(consumer));
+        return new Job(() -> invocation(source, consumer, entryContainer), asDrainNotifier(consumer),
+                sourceName, consumer.getId());
     }
 
     private static <T> State invocation(
@@ -111,6 +117,14 @@ public class Job {
 
     public void requestNotifyOnDrain(Runnable action) {
         drainNotifier.requestNotification(action);
+    }
+
+    public String getSourceName() {
+        return sourceName;
+    }
+
+    public String getConsumerId() {
+        return consumerId;
     }
 
     private static class EntryContainer<T, E extends BasicEntry<T>> {

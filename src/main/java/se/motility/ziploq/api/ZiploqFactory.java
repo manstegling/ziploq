@@ -136,7 +136,7 @@ public interface ZiploqFactory {
                 String sourceName, Comparator<T> comparator) {
             FlowConsumer<T> consumer = ziploq.registerUnordered(businessDelay,
                     softCapacity, BackPressureStrategy.DROP, sourceName, comparator);
-            addJob(Job.create(source, consumer));
+            addJob(Job.create(source, consumer, sourceName));
             return this;
         }
 
@@ -155,7 +155,7 @@ public interface ZiploqFactory {
         public <T extends E> ManagedZipFlowBuilder<E> registerOrdered(
                 FlowSource<T> source, int capacity, String sourceName) {
             FlowConsumer<T> consumer = ziploq.registerOrdered(capacity, BackPressureStrategy.DROP, sourceName);
-            addJob(Job.create(source, consumer));
+            addJob(Job.create(source, consumer, sourceName));
             return this;
         }
 
@@ -203,7 +203,7 @@ public interface ZiploqFactory {
                 String sourceName, Comparator<T> comparator) {
             FlowConsumer<T> consumer = ziploq.registerUnordered(businessDelay,
                     softCapacity, BackPressureStrategy.DROP, sourceName, comparator);
-            addJob(Job.create(source, consumer));
+            addJob(Job.create(source, consumer, sourceName));
             return this;
         }
 
@@ -222,7 +222,7 @@ public interface ZiploqFactory {
         public <T extends E> ManagedZiploqBuilder<E> registerOrdered(
                 Source<T> source, int capacity, String sourceName) {
             FlowConsumer<T> consumer = ziploq.registerOrdered(capacity, BackPressureStrategy.DROP, sourceName);
-            addJob(Job.create(source, consumer));
+            addJob(Job.create(source, consumer, sourceName));
             return this;
         }
 

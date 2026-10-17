@@ -13,7 +13,10 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
+import java.util.function.Consumer;
 
 import org.jctools.queues.MpmcArrayQueue;
 import org.slf4j.Logger;
@@ -58,15 +61,17 @@ public class JobScheduler {
     private final int jobs;
     private final AtomicInteger completed = new AtomicInteger();
     private final AtomicLong totalCycles = new AtomicLong();
+    private final AtomicIntegerArray parked;
     private final ScheduledFuture<?> cooldownTask;
 
     public JobScheduler(int threads, List<Job> jobs) {
         LOG.debug("Job scheduler config: {} retries", RETRIES);
         int instance = COUNTER.incrementAndGet();
         int effectiveThreads = Math.min(threads, jobs.size());
+        this.parked = new AtomicIntegerArray(effectiveThreads);
         this.threads = createWorkers(effectiveThreads, instance);
         this.jobs = jobs.size();
-        this.queue = createJobQueue(jobs);
+        this.queue = createJobQueue(jobs, this::enqueue);
         this.cooldown = new MpmcArrayQueue<>(jobs.size());
         this.cooldownTask = COOLDOWN_EXECUTOR.scheduleWithFixedDelay(this::reset, 1L, 1L, TimeUnit.MILLISECONDS);
     }
@@ -74,16 +79,17 @@ public class JobScheduler {
     private Thread[] createWorkers(int threadCount, int instanceId) {
         Thread[] workerThreads = new Thread[threadCount];
         for (int i = 0; i < threadCount; i++) {
-            Thread worker = new Thread(this::process, "worker-" + instanceId + "-" + i);
+            int threadId = i;
+            Thread worker = new Thread(() -> process(threadId), "worker-" + instanceId + "-" + i);
             worker.setDaemon(true);
             workerThreads[i] = worker;
         }
         return workerThreads;
     }
 
-    private static Queue<JobContext> createJobQueue(List<Job> jobs) {
+    private static Queue<JobContext> createJobQueue(List<Job> jobs, Consumer<JobContext> enqueue) {
         Queue<JobContext> jobQueue = new MpmcArrayQueue<>(jobs.size());
-        jobs.forEach(job -> sanityCheck(jobQueue.offer(new JobContext(job, jobQueue))));
+        jobs.forEach(job -> sanityCheck(jobQueue.offer(new JobContext(job, enqueue))));
         return jobQueue;
     }
 
@@ -93,15 +99,12 @@ public class JobScheduler {
         }
     }
 
-    private void process() {
+    private void process(int threadId) {
         JobContext context;
-        int emptyCycles;
         while (!Thread.currentThread().isInterrupted()) {
-            emptyCycles = 0;
-            while ((context = queue.poll()) == null) {
-                long wait = Math.min((int)Math.pow(10, emptyCycles++), 1_000_000L); //TODO: improve formulation
-                LOG.debug("Sleeping {}...", wait);
-                WaitStrategy.specificWait(wait);
+            context = nextJob(threadId);
+            if (context == null) {
+                return; // shutdown
             }
 
             // Dynamic batching, invoke until not possible anymore
@@ -124,11 +127,12 @@ public class JobScheduler {
                 if (attempt > RETRIES) {
                     sanityCheck(cooldown.offer(context));
                 } else {
-                    sanityCheck(queue.offer(context));
+                    enqueue(context);
                 }
             } else if (state == Job.State.COMPLETED) {
-                LOG.info("Job completed. Total cycles: {}, Stats: {}, {}",
-                        context.cycles, context.delayStats, context.processedStats);
+                LOG.info("Job completed for source '{}' (ID: '{}'). Total cycles: {}, Stats: {}, {}",
+                        context.job.getSourceName(), context.job.getConsumerId(), context.cycles,
+                        context.delayStats, context.processedStats);
                 totalCycles.addAndGet(context.cycles);
                 int totalCompleted = completed.incrementAndGet();
                 if (totalCompleted > jobs - threads.length) {
@@ -141,6 +145,42 @@ public class JobScheduler {
                 }
             } else {
                 throw new IllegalStateException("Unknown status: " + state);
+            }
+        }
+    }
+
+    private JobContext nextJob(int threadId) {
+        JobContext context;
+        for (;;) {
+            if ((context = queue.poll()) != null) {
+                return context;
+            }
+            parked.set(threadId, 1);
+
+            // Defend against race with parked job drain notifier
+            if ((context = queue.poll()) != null) {
+                parked.compareAndSet(threadId, 1, 0);
+                return context;
+            }
+
+            // Loop to handle spurious wakeup
+            while (parked.get(threadId) != 0) {
+                if (Thread.currentThread().isInterrupted()) {
+                    parked.compareAndSet(threadId, 1, 0);
+                    return null; // signal shutdown
+                }
+                LockSupport.park(this);
+            }
+        }
+    }
+
+    private void enqueue(JobContext context) {
+        sanityCheck(queue.offer(context));
+        // Wake one (or none if none is parked)
+        for (int i = 0; i < threads.length; i++) {
+            if (parked.get(i) != 0 && parked.compareAndSet(i, 1, 0)) {
+                LockSupport.unpark(threads[i]);
+                return;
             }
         }
     }
@@ -184,7 +224,7 @@ public class JobScheduler {
     private void reset() {
         JobContext ctx;
         while ((ctx = cooldown.poll()) != null) {
-            sanityCheck(queue.offer(ctx));
+            enqueue(ctx);
         }
     }
 
@@ -196,9 +236,9 @@ public class JobScheduler {
         private int attempts = 0;
         private long cycles = 0L;
 
-        public JobContext(Job job, Queue<JobContext> queue) {
+        public JobContext(Job job, Consumer<JobContext> enqueue) {
             this.job = job;
-            this.resume = () -> sanityCheck(queue.offer(this));
+            this.resume = () -> enqueue.accept(this);
         }
     }
 
