@@ -117,10 +117,7 @@ public class FlowConsumerImpl<T> implements FlowConsumer<T>, DrainNotifier {
         EntryImpl<E> entry = (EntryImpl<E>) queue.poll();
         Runnable action = drainNotificationAction;
         if (action != null) {
-            if (entry != null) {
-                drainedSinceRequest++;
-            }
-            if (drainedSinceRequest >= drainNotificationThreshold || (entry == null && drainedSinceRequest > 0)) {
+            if (entry == null || (++drainedSinceRequest >= drainNotificationThreshold)) {
                 drainNotificationAction = null;
                 drainedSinceRequest = 0;
                 action.run(); //called last to prevent race
